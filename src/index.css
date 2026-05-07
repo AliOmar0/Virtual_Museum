@@ -702,3 +702,14 @@ button { font-family: inherit; cursor: pointer; }
 }
 .meta-row { word-wrap: break-word; overflow-wrap: break-word; }
 .meta-location { word-wrap: break-word; overflow-wrap: break-word; }
+
+/* ============== FULLSCREEN: hide all UI chrome ============== */
+.app-root.is-fullscreen .navbar,
+.app-root.is-fullscreen .info-panel,
+.app-root.is-fullscreen .bottom-bar,
+.app-root.is-fullscreen .hint {
+    display: none !important;
+}
+
+/* Info-toggle icon button active highlight */
+.icon-btn.active { color: var(--gold); }

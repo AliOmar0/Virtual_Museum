@@ -105,23 +105,6 @@ export const modelsData = [
         targetSize: 1.8,
         pedestalHeight: 1.0,
     },
-    {
-        id: "frank",
-        title: "Frank",
-        artist: "misterdevious",
-        year: "Contemporary",
-        type: "statue",
-        category: "modern",
-        description:
-            "A contemporary digital sculpt of Frankenstein's creature in the spirit of Mary Shelley's 1818 novel — not the bolts-and-square-skull caricature, but a sentient, sorrowful figure. The piece sits in the modern wing as a counterpoint to the classical busts: same medium-of-display, completely different intent.",
-        medium: "Digital sculpt (rendered marble)",
-        dimensions: "≈2 m",
-        location: "Online (Sketchfab)",
-        file: "Frank",
-        sourceUrl: "https://sketchfab.com/3d-models/frank-0eb1f1757349489eab05a0f03cff5b46",
-        targetSize: 2.0,
-        pedestalHeight: 1.0,
-    },
 ];
 
 export const CATEGORIES = [

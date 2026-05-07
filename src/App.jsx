@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useProgress } from '@react-three/drei'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { modelsData as builtInModels } from './data/models'
 import Navbar from './components/ui/Navbar'
@@ -83,6 +84,15 @@ export default function App() {
         return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
     })
     const [thumbVersion, setThumbVersion] = useState(0)
+    const [infoVisible, setInfoVisible] = useState(true)
+    const [isFullscreen, setIsFullscreen] = useState(false)
+
+    // Track fullscreen so we can hide all UI chrome when active
+    useEffect(() => {
+        const onChange = () => setIsFullscreen(!!document.fullscreenElement)
+        document.addEventListener('fullscreenchange', onChange)
+        return () => document.removeEventListener('fullscreenchange', onChange)
+    }, [])
 
     const { progress } = useProgress()
     const { enabled: audioOn, toggle: toggleAudio } = useAmbientAudio()
@@ -139,6 +149,7 @@ export default function App() {
             else if (e.key === '1') setMode('viewer')
             else if (e.key === '2') setMode('walkable')
             else if (e.key === '3') setMode('grid')
+            else if (e.key === 'i' || e.key === 'I') setInfoVisible((v) => !v)
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -209,7 +220,7 @@ export default function App() {
     }, [])
 
     return (
-        <div className={`app-root ${dragOver ? 'drag-over' : ''}`}>
+        <div className={`app-root ${dragOver ? 'drag-over' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}>
             <AnimatePresence>
                 {isInitialLoad && <FullScreenLoader key="boot" />}
             </AnimatePresence>
@@ -251,12 +262,14 @@ export default function App() {
             </div>
 
             <AnimatePresence mode="wait">
-                <InfoPanel
-                    key={currentModel.id + mode}
-                    model={currentModel}
-                    compact={mode !== 'viewer'}
-                    onDelete={handleDelete}
-                />
+                {infoVisible && (
+                    <InfoPanel
+                        key={currentModel.id + mode}
+                        model={currentModel}
+                        compact={mode !== 'viewer'}
+                        onDelete={handleDelete}
+                    />
+                )}
             </AnimatePresence>
 
             <div className="bottom-bar">
@@ -268,6 +281,14 @@ export default function App() {
                     thumbVersion={thumbVersion}
                 />
                 <div className="utility-cluster">
+                    <button
+                        className={`icon-btn ${infoVisible ? 'active' : ''}`}
+                        onClick={() => setInfoVisible((v) => !v)}
+                        aria-label={infoVisible ? 'Hide info panel' : 'Show info panel'}
+                        title={infoVisible ? 'Hide info (I)' : 'Show info (I)'}
+                    >
+                        {infoVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                     <AudioBtn enabled={audioOn} onToggle={toggleAudio} />
                     <FullscreenBtn />
                 </div>
