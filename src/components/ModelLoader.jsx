@@ -242,24 +242,32 @@ export function ModelDisplay({ modelData, alignBottom = false, targetSize, extra
     const ModelComp = !modelData.remoteUrl && !modelData.imageUrl
         ? builtInModels[modelData.file] : null
 
+    // User-tweakable transforms saved with the model. tilt is [x,y,z] in
+    // radians; yOffset lifts/lowers the model relative to its anchor (floor
+    // for statues, wall center for paintings).
+    const tilt = modelData.tilt || [0, 0, 0]
+    const yOffset = modelData.yOffset || 0
+
     return (
         <GLBErrorBoundary>
             <Suspense fallback={null}>
-                <AutoFit
-                    type={modelData.type}
-                    alignBottom={alignBottom}
-                    targetSize={targetSize ?? modelData.targetSize}
-                    extraScale={extraScale * (modelData.fineScale || modelData.scale || 1)}
-                    paintingFlip={!!modelData.paintingFlip}
-                >
-                    {modelData.imageUrl ? (
-                        <ImagePlane url={modelData.imageUrl} />
-                    ) : modelData.remoteUrl ? (
-                        <RemoteGLB url={modelData.remoteUrl} />
-                    ) : ModelComp ? (
-                        <ModelComp />
-                    ) : null}
-                </AutoFit>
+                <group rotation={tilt} position={[0, yOffset, 0]}>
+                    <AutoFit
+                        type={modelData.type}
+                        alignBottom={alignBottom}
+                        targetSize={targetSize ?? modelData.targetSize}
+                        extraScale={extraScale * (modelData.fineScale || modelData.scale || 1)}
+                        paintingFlip={!!modelData.paintingFlip}
+                    >
+                        {modelData.imageUrl ? (
+                            <ImagePlane url={modelData.imageUrl} />
+                        ) : modelData.remoteUrl ? (
+                            <RemoteGLB url={modelData.remoteUrl} />
+                        ) : ModelComp ? (
+                            <ModelComp />
+                        ) : null}
+                    </AutoFit>
+                </group>
             </Suspense>
         </GLBErrorBoundary>
     )

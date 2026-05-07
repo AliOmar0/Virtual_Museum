@@ -101,6 +101,8 @@ export async function saveCustomModel(model, file) {
         scale: model.scale,
         pedestalHeight: model.pedestalHeight,
         paintingFlip: model.paintingFlip,
+        tilt: model.tilt,
+        yOffset: model.yOffset,
     }
     if (file) {
         persisted._blobKey = model.id
