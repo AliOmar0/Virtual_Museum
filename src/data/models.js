@@ -63,17 +63,6 @@ export const modelsData = [
         pedestalHeight: 1.0,
     },
     {
-        id: "beksinski",
-        title: "Untitled",
-        artist: "Zdzisław Beksiński",
-        year: "20th Century",
-        type: "painting",
-        description: "A hauntingly beautiful work in the genre of dystopian surrealism by the renowned Polish artist.",
-        file: "Painting_by_zdzislaw_beksinski_2",
-        sourceUrl: "https://sketchfab.com/3d-models/painting-by-zdzislaw-beksinski-2-da5bab909570476b951be08d6a9eecdc",
-        targetSize: 2.6,
-    },
-    {
         id: "thinker",
         title: "The Thinker",
         artist: "Auguste Rodin",

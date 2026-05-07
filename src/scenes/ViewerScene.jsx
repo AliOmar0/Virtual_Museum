@@ -14,11 +14,11 @@ function CameraRig({ isPainting }) {
     const { camera } = useThree()
     useEffect(() => {
         if (isPainting) {
-            camera.position.set(0, 1.4, 5)
-            camera.lookAt(0, 1.4, 0)
-        } else {
             camera.position.set(0, 1.6, 5)
-            camera.lookAt(0, 1.4, 0)
+            camera.lookAt(0, 1.6, 0)
+        } else {
+            camera.position.set(0, 1.3, 4.5)
+            camera.lookAt(0, 1.0, 0)
         }
     }, [camera, isPainting])
     return null
@@ -32,7 +32,7 @@ export default function ViewerScene({ modelData }) {
             shadows
             dpr={[1, 1.75]}
             gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
-            camera={{ position: [0, 1.6, 5], fov: 40 }}
+            camera={{ position: [0, 1.3, 4.5], fov: 40 }}
         >
             <color attach="background" args={['#070605']} />
             <fog attach="fog" args={['#070605', 14, 40]} />
@@ -62,6 +62,7 @@ export default function ViewerScene({ modelData }) {
                             withSpotlight
                             withPedestal={false}
                             castShadowSpot
+                            targetSize={2.6}
                         />
                     </Float>
                 ) : (
@@ -72,6 +73,7 @@ export default function ViewerScene({ modelData }) {
                         withSpotlight
                         withPedestal={false}
                         castShadowSpot
+                        targetSize={2.0}
                     />
                 )}
 
@@ -89,7 +91,7 @@ export default function ViewerScene({ modelData }) {
                 enableZoom
                 minDistance={2.5}
                 maxDistance={14}
-                target={isPainting ? [0, 1.4, 0] : [0, 1.4, 0]}
+                target={isPainting ? [0, 1.6, 0] : [0, 1.0, 0]}
                 makeDefault
                 enableDamping
                 dampingFactor={0.08}

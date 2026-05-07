@@ -399,6 +399,56 @@ button { font-family: inherit; cursor: pointer; }
 .dialog-form input:focus,
 .dialog-form select:focus { border-color: var(--gold); }
 .dialog-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.dialog-tabs {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    background: rgba(255,255,255,0.04);
+    padding: 0.25rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.dialog-tabs button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.55);
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+}
+.dialog-tabs button:hover { color: #fff; }
+.dialog-tabs button.tab-active {
+    background: rgba(212, 175, 55, 0.18);
+    color: var(--gold);
+}
+.file-row { display: flex; }
+.file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: flex-start;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.85rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(255,255,255,0.18);
+    color: #fff;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+}
+.file-btn:hover { border-color: var(--gold); color: var(--gold); }
+.file-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .dialog-error {
     color: #ff6b6b;
     font-size: 0.8rem;

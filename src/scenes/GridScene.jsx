@@ -149,6 +149,7 @@ export default function GridScene({ models, currentIndex, onSelect }) {
                                 position={exhibitPos}
                                 withSpotlight={i === currentIndex}
                                 withPedestal={!isPainting}
+                                targetSize={isPainting ? 2.4 : 1.7}
                             />
                             {i === currentIndex && (
                                 <mesh rotation={[-Math.PI / 2, 0, 0]} position={[position[0], 0.02, position[2]]}>

@@ -1,46 +1,83 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Upload } from 'lucide-react'
 
 export default function AddModelDialog({ open, onClose, onAdd }) {
+    const [mode, setMode] = useState('file') // 'file' | 'url'
     const [url, setUrl] = useState('')
+    const [file, setFile] = useState(null)
     const [title, setTitle] = useState('')
     const [type, setType] = useState('statue')
     const [scale, setScale] = useState(1)
     const [error, setError] = useState('')
+    const fileInputRef = useRef(null)
+
+    // Track blob URLs we hand to the app so we can revoke them later
+    const blobUrlsRef = useRef([])
+
+    useEffect(() => {
+        return () => {
+            blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
+        }
+    }, [])
+
+    const reset = () => {
+        setUrl(''); setFile(null); setTitle(''); setScale(1); setType('statue'); setError('')
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
 
     const submit = (e) => {
         e.preventDefault()
         setError('')
-        if (!url.trim()) {
-            setError('Please paste a direct .glb URL.')
-            return
+
+        let finalUrl = ''
+        let displaySource = ''
+
+        if (mode === 'file') {
+            if (!file) {
+                setError('Please choose a .glb file from your computer.')
+                return
+            }
+            if (!/\.glb$/i.test(file.name)) {
+                setError('That file isn\'t a .glb. On Sketchfab, pick the GLB download (not DAE/USDZ/glTF).')
+                return
+            }
+            finalUrl = URL.createObjectURL(file)
+            blobUrlsRef.current.push(finalUrl)
+            displaySource = file.name
+        } else {
+            const trimmed = url.trim()
+            if (!trimmed) {
+                setError('Please paste a direct .glb URL.')
+                return
+            }
+            if (/sketchfab\.com\/3d-models/i.test(trimmed)) {
+                setError("Sketchfab page links can't load directly. Switch to \"Upload file\" and pick the .glb you downloaded.")
+                return
+            }
+            if (!/\.glb($|\?|#)/i.test(trimmed)) {
+                setError('URL must point to a .glb file (e.g. ends in .glb).')
+                return
+            }
+            finalUrl = trimmed
+            displaySource = trimmed
         }
-        const trimmed = url.trim()
-        if (/sketchfab\.com\/3d-models/i.test(trimmed)) {
-            setError("Sketchfab page links can't be loaded directly. Download the .glb file first, host it somewhere with CORS enabled, then paste that direct URL.")
-            return
-        }
-        if (!/\.glb($|\?|#)/i.test(trimmed)) {
-            setError('URL must point to a .glb file (e.g. ends in .glb).')
-            return
-        }
+
         const id = `custom-${Date.now()}`
         onAdd({
             id,
-            title: title.trim() || 'Custom Exhibit',
+            title: title.trim() || (file ? file.name.replace(/\.glb$/i, '') : 'Custom Exhibit'),
             artist: 'Custom',
             year: '—',
             type,
-            description: 'A custom 3D model added from a direct URL.',
+            description: 'A custom 3D model added by you.',
             file: id,
-            remoteUrl: url.trim(),
-            sourceUrl: url.trim(),
+            remoteUrl: finalUrl,
+            sourceUrl: displaySource,
             scale: Number(scale) || 1,
-            wallSize: type === 'painting' ? [3, 3] : undefined,
-            pedestalHeight: type === 'statue' ? 1.1 : undefined,
+            pedestalHeight: type === 'statue' ? 1.0 : undefined,
         })
-        setUrl(''); setTitle(''); setScale(1); setType('statue')
+        reset()
         onClose()
     }
 
@@ -65,24 +102,65 @@ export default function AddModelDialog({ open, onClose, onAdd }) {
                             <h2>Add a 3D Model</h2>
                             <button className="icon-btn" onClick={onClose}><X size={14} /></button>
                         </div>
+
+                        <div className="dialog-tabs">
+                            <button
+                                type="button"
+                                className={mode === 'file' ? 'tab-active' : ''}
+                                onClick={() => { setMode('file'); setError('') }}
+                            >Upload file</button>
+                            <button
+                                type="button"
+                                className={mode === 'url' ? 'tab-active' : ''}
+                                onClick={() => { setMode('url'); setError('') }}
+                            >Paste URL</button>
+                        </div>
+
                         <p className="dialog-help">
-                            Paste a direct <strong>.glb</strong> file URL. Sketchfab page links
-                            (sketchfab.com/3d-models/...) won't work directly &mdash; download the model
-                            from Sketchfab (when the author allows), then host the .glb on any CDN
-                            (e.g. GitHub raw, Cloudflare R2) and paste that URL here. The host must
-                            allow CORS.
+                            {mode === 'file' ? (
+                                <>Pick a <strong>.glb</strong> file from your computer. On Sketchfab, click
+                                <em> Download 3D Model</em> and choose the <strong>GLB</strong> format
+                                (not DAE/USDZ/glTF) — that's the file you upload here.</>
+                            ) : (
+                                <>Paste a direct <strong>.glb</strong> URL hosted on a CORS-enabled CDN
+                                (e.g. GitHub raw, Cloudflare R2). Sketchfab page links don't work directly.</>
+                            )}
                         </p>
+
                         <form onSubmit={submit} className="dialog-form">
-                            <label>
-                                <span>Model URL (.glb)</span>
-                                <input
-                                    type="url"
-                                    value={url}
-                                    onChange={(e) => setUrl(e.target.value)}
-                                    placeholder="https://example.com/model.glb"
-                                    autoFocus
-                                />
-                            </label>
+                            {mode === 'file' ? (
+                                <label>
+                                    <span>Model file (.glb)</span>
+                                    <div className="file-row">
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".glb,model/gltf-binary"
+                                            onChange={(e) => setFile(e.target.files?.[0] || null)}
+                                            style={{ display: 'none' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn-ghost file-btn"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <Upload size={14} />
+                                            <span>{file ? file.name : 'Choose .glb file…'}</span>
+                                        </button>
+                                    </div>
+                                </label>
+                            ) : (
+                                <label>
+                                    <span>Model URL (.glb)</span>
+                                    <input
+                                        type="url"
+                                        value={url}
+                                        onChange={(e) => setUrl(e.target.value)}
+                                        placeholder="https://example.com/model.glb"
+                                        autoFocus
+                                    />
+                                </label>
+                            )}
                             <label>
                                 <span>Title</span>
                                 <input

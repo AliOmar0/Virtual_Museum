@@ -18,6 +18,7 @@ export function Exhibit({
     withSpotlight = true,
     withPedestal = true,
     castShadowSpot = false,
+    targetSize,
 }) {
     const spinRef = useRef()
     useFrame((_, dt) => {
@@ -31,7 +32,7 @@ export function Exhibit({
         // ModelDisplay normalizes the painting to ~targetSize meters and centers it.
         return (
             <group position={position} rotation={[0, rotationY, 0]}>
-                <ModelDisplay modelData={modelData} />
+                <ModelDisplay modelData={modelData} targetSize={targetSize} />
                 {withSpotlight && (
                     <ExhibitSpotlight
                         from={[0, 1.4, 1.6]}
@@ -45,12 +46,12 @@ export function Exhibit({
     }
 
     // Statue: pedestal sits at floor, model bottom-aligned on top of pedestal
-    const pedestalHeight = modelData.pedestalHeight ?? 1.0
+    const pedestalHeight = withPedestal ? (modelData.pedestalHeight ?? 1.0) : 0
     return (
         <group position={position} rotation={[0, rotationY, 0]}>
             {withPedestal && <Pedestal height={pedestalHeight} />}
             <group ref={spinRef} position={[0, pedestalHeight, 0]}>
-                <ModelDisplay modelData={modelData} alignBottom />
+                <ModelDisplay modelData={modelData} alignBottom targetSize={targetSize} />
             </group>
             {withSpotlight && (
                 <ExhibitSpotlight

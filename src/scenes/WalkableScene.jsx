@@ -22,7 +22,9 @@ function computeLayout(models) {
             const onLeft = paintingIdx % 2 === 0
             const z = -((Math.floor(paintingIdx / 2)) * SPACING + 4)
             const x = onLeft ? -ROOM_WIDTH / 2 + 0.15 : ROOM_WIDTH / 2 - 0.15
-            const rotY = onLeft ? Math.PI / 2 : -Math.PI / 2
+            // Left wall: face +X (into the room) → rotate -90° around Y
+            // Right wall: face -X (into the room) → rotate +90° around Y
+            const rotY = onLeft ? -Math.PI / 2 : Math.PI / 2
             placements.push({ model: m, position: [x, PAINTING_Y, z], rotationY: rotY })
             paintingIdx++
         } else {
@@ -172,6 +174,7 @@ export default function WalkableScene({ models, currentIndex }) {
                         rotationY={rotationY}
                         withSpotlight={i === currentIndex}
                         withPedestal
+                        targetSize={model.type === 'painting' ? 3.0 : undefined}
                     />
                 ))}
             </Suspense>
