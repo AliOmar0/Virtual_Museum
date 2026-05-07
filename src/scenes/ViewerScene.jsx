@@ -70,7 +70,7 @@ export default function ViewerScene({ modelData }) {
                         position={[0, 0, 0]}
                         autoRotate
                         withSpotlight
-                        withPedestal
+                        withPedestal={false}
                         castShadowSpot
                     />
                 )}

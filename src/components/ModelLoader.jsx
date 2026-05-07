@@ -101,11 +101,12 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
             if (!i || !o) { raf = requestAnimationFrame(tryFit); return }
 
             // Reset before measuring so re-fits work correctly
+            i.rotation.set(0, 0, 0)
             i.position.set(0, 0, 0)
             o.scale.setScalar(1)
             i.updateMatrixWorld(true)
 
-            const box = new THREE.Box3().setFromObject(i)
+            let box = new THREE.Box3().setFromObject(i)
             if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) {
                 if (++attempts < MAX_ATTEMPTS) {
                     raf = requestAnimationFrame(tryFit)
@@ -116,23 +117,51 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
                 }
                 return
             }
-            const size = new THREE.Vector3(); box.getSize(size)
+            let size = new THREE.Vector3(); box.getSize(size)
+
+            // For paintings, auto-orient: the smallest bbox dimension is the
+            // painting's depth/thickness, and that axis should align with local Z
+            // so the painting hangs flat. This handles inconsistent GLB exports.
+            if (type === 'painting') {
+                const sx = size.x, sy = size.y, sz = size.z
+                if (sx <= sy && sx <= sz) {
+                    // depth is X → rotate to bring X-normal onto Z
+                    i.rotation.set(0, Math.PI / 2, 0)
+                } else if (sy <= sx && sy <= sz) {
+                    // depth is Y → rotate to bring Y-normal onto Z
+                    i.rotation.set(Math.PI / 2, 0, 0)
+                }
+                i.updateMatrixWorld(true)
+                box = new THREE.Box3().setFromObject(i)
+                size = new THREE.Vector3(); box.getSize(size)
+            }
+
             const center = new THREE.Vector3(); box.getCenter(center)
 
-            // Choose the dimension to normalize:
-            // - paintings: largest of width/height (so they fill a wall slot)
-            // - statues: height (so they look human-scaled on the pedestal)
+            // Normalize:
+            // - paintings: max(width, height) ignoring depth — so a thick frame
+            //   doesn't tank the size
+            // - statues: height
             const dim = type === 'painting'
-                ? Math.max(size.x, size.y, size.z)
+                ? Math.max(size.x, size.y, 0.001)
                 : Math.max(size.y, 0.001)
             const defaultTarget = type === 'painting' ? 2.4 : 1.6
             const s = (targetSize || defaultTarget) / dim * extraScale
 
             o.scale.setScalar(s)
+            // After rotation, position is in inner's local frame (pre-rotation),
+            // so translate the bbox center to origin in that frame.
+            // We compute the rotation-adjusted offset by transforming center back.
+            const invRot = new THREE.Matrix4().makeRotationFromEuler(i.rotation).invert()
+            const localCenter = center.clone().applyMatrix4(invRot)
+            const localMinY = alignBottom
+                ? new THREE.Vector3(0, box.min.y, 0).applyMatrix4(invRot).y
+                : 0
+
             i.position.set(
-                -center.x,
-                alignBottom ? -box.min.y : -center.y,
-                -center.z
+                -localCenter.x,
+                alignBottom ? -localMinY : -localCenter.y,
+                -localCenter.z
             )
 
             enhanceMaterials(i)
