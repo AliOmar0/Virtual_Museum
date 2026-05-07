@@ -15,7 +15,7 @@ function speak(text, onEnd) {
     return utt
 }
 
-export default function InfoPanel({ model, compact = false, onDelete }) {
+export default function InfoPanel({ model, compact = false, onDelete, showDescription = true }) {
     const [speaking, setSpeaking] = useState(false)
     const canDelete = !!model?._custom && typeof onDelete === 'function'
 
@@ -57,7 +57,7 @@ export default function InfoPanel({ model, compact = false, onDelete }) {
             <h1 className="model-title">{model.title}</h1>
             <div className="year-tag">{model.year}</div>
 
-            {!compact && (
+            {!compact && showDescription && (
                 <>
                     {(model.medium || model.dimensions) && (
                         <div className="meta-row">

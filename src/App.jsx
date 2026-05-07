@@ -84,7 +84,8 @@ export default function App() {
         return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
     })
     const [thumbVersion, setThumbVersion] = useState(0)
-    const [infoVisible, setInfoVisible] = useState(true)
+    // When false, only the description is hidden — title + artist stay visible
+    const [descVisible, setDescVisible] = useState(true)
     const [isFullscreen, setIsFullscreen] = useState(false)
 
     // Track fullscreen so we can hide all UI chrome when active
@@ -149,7 +150,7 @@ export default function App() {
             else if (e.key === '1') setMode('viewer')
             else if (e.key === '2') setMode('walkable')
             else if (e.key === '3') setMode('grid')
-            else if (e.key === 'i' || e.key === 'I') setInfoVisible((v) => !v)
+            else if (e.key === 'i' || e.key === 'I') setDescVisible((v) => !v)
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -262,14 +263,13 @@ export default function App() {
             </div>
 
             <AnimatePresence mode="wait">
-                {infoVisible && (
-                    <InfoPanel
-                        key={currentModel.id + mode}
-                        model={currentModel}
-                        compact={mode !== 'viewer'}
-                        onDelete={handleDelete}
-                    />
-                )}
+                <InfoPanel
+                    key={currentModel.id + mode}
+                    model={currentModel}
+                    compact={mode !== 'viewer'}
+                    showDescription={descVisible}
+                    onDelete={handleDelete}
+                />
             </AnimatePresence>
 
             <div className="bottom-bar">
@@ -282,12 +282,12 @@ export default function App() {
                 />
                 <div className="utility-cluster">
                     <button
-                        className={`icon-btn ${infoVisible ? 'active' : ''}`}
-                        onClick={() => setInfoVisible((v) => !v)}
-                        aria-label={infoVisible ? 'Hide info panel' : 'Show info panel'}
-                        title={infoVisible ? 'Hide info (I)' : 'Show info (I)'}
+                        className={`icon-btn ${descVisible ? 'active' : ''}`}
+                        onClick={() => setDescVisible((v) => !v)}
+                        aria-label={descVisible ? 'Hide description' : 'Show description'}
+                        title={descVisible ? 'Hide description (I)' : 'Show description (I)'}
                     >
-                        {infoVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {descVisible ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                     <AudioBtn enabled={audioOn} onToggle={toggleAudio} />
                     <FullscreenBtn />

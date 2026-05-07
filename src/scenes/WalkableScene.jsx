@@ -67,7 +67,11 @@ export default function WalkableScene({
         return { lamps, benches, columns, plants }
     }, [roomDepth])
 
-    const current = placements[currentIndex] || placements[0]
+    // CRITICAL: placements are grouped by category, so the index in `placements`
+    // does NOT match the index in `models`. Look up by model id instead.
+    const currentModelId = models[currentIndex]?.id
+    const currentPlacementIdx = placements.findIndex((p) => p.model.id === currentModelId)
+    const current = placements[currentPlacementIdx] || placements[0]
     const cam = useMemo(() => {
         if (!current) return { pos: [0, 1.7, 5], look: [0, 1.7, 0] }
         const [x, y, z] = current.position
@@ -159,9 +163,10 @@ export default function WalkableScene({
                 ))}
 
                 {/* Exhibits */}
-                {placements.map(({ model, position, rotationY, category }, i) => {
+                {placements.map(({ model, position, rotationY, category }) => {
                     const accent = categoryMeta(category).accent
                     const isPainting = model.type === 'painting'
+                    const isCurrent = model.id === currentModelId
                     return (
                         <group key={model.id}>
                             {/* Wall panel BEHIND paintings — pushed toward the wall so its
@@ -183,7 +188,7 @@ export default function WalkableScene({
                                 modelData={model}
                                 position={position}
                                 rotationY={rotationY}
-                                withSpotlight={i === currentIndex}
+                                withSpotlight={isCurrent}
                                 withPedestal={!isPainting}
                                 targetSize={isPainting ? PAINTING_TARGET : undefined}
                             />
