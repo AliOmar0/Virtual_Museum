@@ -1017,3 +1017,108 @@ button { font-family: inherit; cursor: pointer; }
     .perf-hud { top: auto; bottom: 110px; right: 0.6rem; }
     .share-qr-row { flex-direction: column; }
 }
+
+/* ============== ADD-MODEL DIALOG: smart autofill ============== */
+.autofill-block {
+    background: linear-gradient(180deg, rgba(212,180,131,0.06), rgba(212,180,131,0.02));
+    border: 1px solid rgba(212,180,131,0.18);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.autofill-label {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin: 0;
+}
+.autofill-label > span {
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-size: 0.62rem;
+}
+.autofill-hint {
+    font-style: normal;
+    text-transform: none;
+    letter-spacing: normal;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.45);
+    text-align: right;
+    flex: 1;
+    min-width: 0;
+}
+.autofill-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+.autofill-row input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none;
+}
+.autofill-row input:focus { border-color: var(--gold); }
+.autofill-btn {
+    flex: 0 0 auto;
+    width: 38px;
+    height: auto;
+    background: var(--gold);
+    color: #1a1308;
+    border: none;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: filter 0.15s, opacity 0.15s;
+}
+.autofill-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.autofill-btn:disabled { opacity: 0.6; cursor: wait; }
+.autofill-btn .spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.autofill-msg {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.4;
+}
+
+/* Three-column row: type / section / scale all inline */
+.dialog-row.dialog-row-3 {
+    grid-template-columns: 1.1fr 1.1fr 0.7fr;
+}
+
+/* Description as proper textarea */
+.dialog-form textarea {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+}
+.dialog-form textarea:focus { border-color: var(--gold); }
+
+@media (max-width: 560px) {
+    .dialog-row.dialog-row-3 { grid-template-columns: 1fr 1fr; }
+    .dialog-row.dialog-row-3 > label:last-child { grid-column: 1 / -1; }
+    .autofill-label { flex-direction: column !important; align-items: flex-start; }
+    .autofill-hint { text-align: left; }
+}

@@ -49,10 +49,19 @@ function enhanceMaterials(root, type = 'statue') {
                     m.map.anisotropy = 8
                     m.map.colorSpace = THREE.SRGBColorSpace
                 }
-                // Paintings are flat — render both sides so the artwork is
-                // visible regardless of which way the GLB was authored.
+                // Paintings: render both sides so it doesn't matter which face
+                // the GLB exporter chose for the artwork. Also push the diffuse
+                // texture into the emissive channel so the painting is always
+                // visible — even when the front face ends up against a wall in
+                // the gallery, or when the room lighting is dim. This mimics
+                // the way real museum paintings are independently spot-lit.
                 if (type === 'painting') {
                     m.side = THREE.DoubleSide
+                    if (m.map && 'emissive' in m) {
+                        m.emissive = new THREE.Color(0xffffff)
+                        m.emissiveMap = m.map
+                        m.emissiveIntensity = 0.55
+                    }
                 }
                 if (enhancedMaterials.has(m)) return
                 if ('envMapIntensity' in m) m.envMapIntensity = 1.1

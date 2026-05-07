@@ -53,8 +53,6 @@ export const modelsData = [
         file: "Death_crowning_innocence_1896_Painting",
         sourceUrl: "https://sketchfab.com/3d-models/death-crowning-innocence-1896-ebcbbe30d65a43fa96187ade879d43cd",
         targetSize: 2.6,
-        // GLB authored facing -Z (canvas back faces the room by default).
-        paintingFlip: true,
     },
     {
         id: "laocoon",

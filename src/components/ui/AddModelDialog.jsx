@@ -9,27 +9,69 @@ async function fetchSketchfabMeta(pageUrl) {
     if (!res.ok) throw new Error('Sketchfab returned ' + res.status)
     const data = await res.json()
     return {
+        source: 'sketchfab',
         title: data.title || '',
         artist: data.author_name || '',
         sourceUrl: pageUrl,
         license: data.license || '',
+        description: '',
     }
 }
 
+async function fetchWikipediaMeta(query) {
+    const title = encodeURIComponent(query.trim())
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${title}`
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (!res.ok) throw new Error('Wikipedia returned ' + res.status)
+    const data = await res.json()
+    if (data.type === 'disambiguation') throw new Error('disambiguation')
+    return {
+        source: 'wikipedia',
+        title: data.title || query,
+        artist: '',
+        year: '',
+        description: data.extract || '',
+        sourceUrl: data.content_urls?.desktop?.page || '',
+        license: 'Wikipedia / CC BY-SA',
+    }
+}
+
+// Pull a 4-digit year out of free text if present
+function extractYear(text = '') {
+    const m = text.match(/\b(1[0-9]{3}|20[0-2][0-9])\b/)
+    return m ? m[1] : ''
+}
+// Try to extract "by Artist Name" or "Artist Name (1890–1955)"
+function extractArtist(text = '') {
+    const m = text.match(/by\s+([A-Z][\w'.\-]+(?:\s+[A-Z][\w'.\-]+){0,3})/)
+    if (m) return m[1]
+    return ''
+}
 function guessTypeFromTitle(t = '') {
     const s = t.toLowerCase()
-    if (/(painting|portrait|canvas|fresco|landscape)/.test(s)) return 'painting'
+    if (/(painting|portrait|canvas|fresco|landscape|mural)/.test(s)) return 'painting'
     return 'statue'
 }
 function guessCategoryFromTitle(t = '') {
     const s = t.toLowerCase()
-    if (/(painting|portrait|canvas|fresco)/.test(s)) return 'paintings'
-    if (/(roman|greek|hellenistic|baroque|marble bust|18\d\d|17\d\d|16\d\d|bc|b\.c\.)/.test(s)) return 'classical'
+    if (/(painting|portrait|canvas|fresco|mural)/.test(s)) return 'paintings'
+    if (/(roman|greek|hellenistic|baroque|renaissance|marble bust|marble statue|antiqu|18\d\d|17\d\d|16\d\d|bc|b\.c\.)/.test(s)) return 'classical'
     return 'modern'
+}
+
+function buildPlaceholderDescription(title, artist, year) {
+    const t = title?.trim() || 'this work'
+    const a = artist?.trim()
+    const y = year?.trim()
+    const lead = a ? `${t} is a notable work by ${a}` : `${t} is a notable work in this collection`
+    const dated = y ? `${lead}, dated to ${y}.` : `${lead}.`
+    return `${dated} Explore it from every angle — drag to rotate, scroll to zoom in on details, and use the audio guide for a short narration.`
 }
 
 const isImageFile = (f) => f && /\.(png|jpe?g|webp|avif)$/i.test(f.name)
 const isGlbFile = (f) => f && /\.glb$/i.test(f.name)
+const isUrl = (s) => /^https?:\/\//i.test(s.trim())
+const isSketchfabUrl = (s) => /sketchfab\.com\/3d-models\//i.test(s)
 
 function readImageAsDataUrl(file) {
     return new Promise((resolve, reject) => {
@@ -41,7 +83,7 @@ function readImageAsDataUrl(file) {
 }
 
 export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
-    const [mode, setMode] = useState('file')   // 'file' | 'url' | 'image'
+    const [mode, setMode] = useState('file')
     const [url, setUrl] = useState('')
     const [file, setFile] = useState(null)
     const [imageFile, setImageFile] = useState(null)
@@ -53,7 +95,7 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
     const [category, setCategory] = useState('modern')
     const [scale, setScale] = useState(1)
     const [error, setError] = useState('')
-    const [autoFillUrl, setAutoFillUrl] = useState('')
+    const [autoFillQuery, setAutoFillQuery] = useState('')
     const [autoFilling, setAutoFilling] = useState(false)
     const [autoFillMsg, setAutoFillMsg] = useState('')
     const fileInputRef = useRef(null)
@@ -73,29 +115,69 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
         setUrl(''); setFile(null); setImageFile(null)
         setTitle(''); setArtist(''); setYear(''); setDescription('')
         setScale(1); setType('statue'); setCategory('modern')
-        setAutoFillUrl(''); setAutoFillMsg(''); setError('')
+        setAutoFillQuery(''); setAutoFillMsg(''); setError('')
         if (fileInputRef.current) fileInputRef.current.value = ''
         if (imageInputRef.current) imageInputRef.current.value = ''
     }
 
-    const runAutoFill = async () => {
-        const u = autoFillUrl.trim()
-        if (!u) { setAutoFillMsg('Paste the Sketchfab page URL first.'); return }
-        if (!/sketchfab\.com\/3d-models\//i.test(u)) {
-            setAutoFillMsg('Only Sketchfab page URLs are supported.'); return
+    const applyMeta = (meta) => {
+        if (meta.title) setTitle(meta.title)
+        const detectedYear = meta.year || extractYear(meta.description)
+        if (detectedYear) setYear(detectedYear)
+        const detectedArtist = meta.artist || extractArtist(meta.description)
+        if (detectedArtist) setArtist(detectedArtist)
+        setType(guessTypeFromTitle(meta.title))
+        setCategory(guessCategoryFromTitle(meta.title))
+        const desc = (meta.description || '').slice(0, 540).trim()
+        if (desc) {
+            const tail = meta.license ? ` (Source: ${meta.source === 'wikipedia' ? 'Wikipedia' : 'Sketchfab'} · ${meta.license})` : ''
+            setDescription(desc + tail)
+        } else {
+            setDescription(buildPlaceholderDescription(meta.title, detectedArtist, detectedYear))
         }
+    }
+
+    const runAutoFill = async () => {
+        const q = autoFillQuery.trim()
+        if (!q) {
+            const seedTitle = title.trim() || file?.name?.replace(/\.glb$/i, '') || imageFile?.name?.replace(/\.\w+$/, '') || ''
+            if (!seedTitle) {
+                setAutoFillMsg('Type a work title (e.g. "Mona Lisa") or paste a Sketchfab URL.')
+                return
+            }
+            return runAutoFillWith(seedTitle)
+        }
+        return runAutoFillWith(q)
+    }
+
+    const runAutoFillWith = async (q) => {
         setAutoFilling(true); setAutoFillMsg('')
         try {
-            const meta = await fetchSketchfabMeta(u)
-            if (meta.title) setTitle(meta.title)
-            if (meta.artist) setArtist(meta.artist)
-            setType(guessTypeFromTitle(meta.title))
-            setCategory(guessCategoryFromTitle(meta.title))
-            const lic = meta.license ? ` · License: ${meta.license}` : ''
-            setDescription(`${meta.title || 'Untitled'} by ${meta.artist || 'Unknown'}.${lic} Source: Sketchfab.`)
-            setAutoFillMsg(`Filled from Sketchfab: "${meta.title}" by ${meta.artist}.`)
-        } catch {
-            setAutoFillMsg("Couldn't fetch from Sketchfab. Fill the fields below manually.")
+            if (isUrl(q) && isSketchfabUrl(q)) {
+                const meta = await fetchSketchfabMeta(q)
+                applyMeta(meta)
+                setAutoFillMsg(`Filled from Sketchfab: "${meta.title}" by ${meta.artist || 'Unknown'}.`)
+                // Best-effort enrichment from Wikipedia if we got a clean title
+                if (meta.title) {
+                    try {
+                        const wiki = await fetchWikipediaMeta(meta.title)
+                        if (wiki.description) {
+                            setDescription((prev) => prev || wiki.description)
+                            const y = extractYear(wiki.description)
+                            if (y) setYear((prev) => prev || y)
+                        }
+                    } catch { /* ok, optional */ }
+                }
+            } else {
+                const meta = await fetchWikipediaMeta(q)
+                applyMeta(meta)
+                setAutoFillMsg(`Filled from Wikipedia: "${meta.title}".`)
+            }
+        } catch (err) {
+            const seedTitle = q && !isUrl(q) ? q : (title.trim() || 'Untitled')
+            setTitle((prev) => prev || seedTitle)
+            setDescription((prev) => prev || buildPlaceholderDescription(seedTitle, artist, year))
+            setAutoFillMsg("Couldn't find a match — filled with placeholder text you can edit.")
         } finally {
             setAutoFilling(false)
         }
@@ -118,7 +200,7 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                     year: year.trim() || '—',
                     type: 'painting',
                     category: category === 'modern' ? 'paintings' : category,
-                    description: description.trim() || 'A custom image added by you.',
+                    description: description.trim() || buildPlaceholderDescription(title, artist, year),
                     file: id,
                     imageUrl: dataUrl,
                     sourceUrl: imageFile.name,
@@ -136,10 +218,10 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                     artist: artist.trim() || 'Custom',
                     year: year.trim() || '—',
                     type, category,
-                    description: description.trim() || 'A custom 3D model added by you.',
+                    description: description.trim() || buildPlaceholderDescription(title, artist, year),
                     file: id,
                     remoteUrl: URL.createObjectURL(file),
-                    sourceUrl: autoFillUrl.trim() || file.name,
+                    sourceUrl: autoFillQuery.trim() || file.name,
                     scale: Number(scale) || 1,
                     pedestalHeight: type === 'statue' ? 1.0 : undefined,
                 },
@@ -149,7 +231,7 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
             const trimmed = url.trim()
             if (!trimmed) { setError('Please paste a direct .glb URL.'); return }
             if (/sketchfab\.com\/3d-models/i.test(trimmed)) {
-                setError("Sketchfab page links can't load directly. Switch to \"Upload file\" — you can still autofill metadata above.")
+                setError("Sketchfab page links can't load directly. Switch to \"3D file\" — you can still autofill metadata above.")
                 return
             }
             if (!/\.glb($|\?|#)/i.test(trimmed)) { setError('URL must point to a .glb file.'); return }
@@ -160,10 +242,10 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                     artist: artist.trim() || 'Custom',
                     year: year.trim() || '—',
                     type, category,
-                    description: description.trim() || 'A custom 3D model added by you.',
+                    description: description.trim() || buildPlaceholderDescription(title, artist, year),
                     file: id,
                     remoteUrl: trimmed,
-                    sourceUrl: autoFillUrl.trim() || trimmed,
+                    sourceUrl: autoFillQuery.trim() || trimmed,
                     scale: Number(scale) || 1,
                     pedestalHeight: type === 'statue' ? 1.0 : undefined,
                 },
@@ -203,22 +285,25 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                         </p>
 
                         <form onSubmit={submit} className="dialog-form">
-                            {mode !== 'image' && (
-                                <label>
-                                    <span>Sketchfab URL <em style={{ opacity: 0.6 }}>(optional, autofills below)</em></span>
-                                    <div className="file-row">
-                                        <input type="url" value={autoFillUrl}
-                                            onChange={(e) => { setAutoFillUrl(e.target.value); setAutoFillMsg('') }}
-                                            placeholder="https://sketchfab.com/3d-models/…" />
-                                        <button type="button" className="btn-ghost file-btn" onClick={runAutoFill}
-                                            disabled={autoFilling} style={{ flex: 'none' }}>
-                                            {autoFilling ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
-                                            <span>{autoFilling ? 'Fetching…' : 'Autofill'}</span>
-                                        </button>
-                                    </div>
-                                    {autoFillMsg && <div className="dialog-help" style={{ margin: '0.4rem 0 0', opacity: 0.75 }}>{autoFillMsg}</div>}
+                            <div className="autofill-block">
+                                <label className="autofill-label">
+                                    <span>Smart autofill</span>
+                                    <em className="autofill-hint">Sketchfab URL, work title, or artist — we'll search Wikipedia.</em>
                                 </label>
-                            )}
+                                <div className="autofill-row">
+                                    <input
+                                        type="text"
+                                        value={autoFillQuery}
+                                        onChange={(e) => { setAutoFillQuery(e.target.value); setAutoFillMsg('') }}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runAutoFill() } }}
+                                        placeholder='e.g. "The Thinker by Rodin" or a Sketchfab URL'
+                                    />
+                                    <button type="button" className="autofill-btn" onClick={runAutoFill} disabled={autoFilling} title="Autofill metadata">
+                                        {autoFilling ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
+                                    </button>
+                                </div>
+                                {autoFillMsg && <div className="autofill-msg">{autoFillMsg}</div>}
+                            </div>
 
                             {mode === 'file' && (
                                 <label>
@@ -265,13 +350,13 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                                     <input type="text" value={year} onChange={(e) => setYear(e.target.value)} placeholder="—" />
                                 </label>
                             </div>
-                            {mode !== 'image' && (
-                                <div className="dialog-row">
+                            {mode !== 'image' ? (
+                                <div className="dialog-row dialog-row-3">
                                     <label>
                                         <span>Type</span>
                                         <select value={type} onChange={(e) => setType(e.target.value)}>
-                                            <option value="statue">Statue / 3D object</option>
-                                            <option value="painting">Painting (wall mount)</option>
+                                            <option value="statue">Statue</option>
+                                            <option value="painting">Painting</option>
                                         </select>
                                     </label>
                                     <label>
@@ -280,6 +365,23 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                                             {CATEGORIES.map((c) => (<option key={c.id} value={c.id}>{c.label}</option>))}
                                         </select>
                                     </label>
+                                    <label>
+                                        <span>Scale</span>
+                                        <input type="number" step="0.1" min="0.01" value={scale} onChange={(e) => setScale(e.target.value)} />
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="dialog-row">
+                                    <label>
+                                        <span>Section</span>
+                                        <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                                            {CATEGORIES.map((c) => (<option key={c.id} value={c.id}>{c.label}</option>))}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span>Scale</span>
+                                        <input type="number" step="0.1" min="0.01" value={scale} onChange={(e) => setScale(e.target.value)} />
+                                    </label>
                                 </div>
                             )}
                             <label>
@@ -287,12 +389,6 @@ export default function AddModelDialog({ open, onClose, onAdd, prefillFile }) {
                                 <textarea value={description} onChange={(e) => setDescription(e.target.value)}
                                     placeholder="A short description of the work…" rows={3} />
                             </label>
-                            {mode !== 'image' && (
-                                <label>
-                                    <span>Scale</span>
-                                    <input type="number" step="0.1" min="0.01" value={scale} onChange={(e) => setScale(e.target.value)} />
-                                </label>
-                            )}
                             {error && <div className="dialog-error">{error}</div>}
                             <div className="dialog-actions">
                                 <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
