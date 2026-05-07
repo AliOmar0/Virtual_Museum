@@ -11,7 +11,7 @@ import React from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Model(props) {
-  const { nodes, materials } = useGLTF('/models/death_crowning_innocence_1896_Painting.glb')
+  const { nodes, materials } = useGLTF(`${import.meta.env.BASE_URL}models/death_crowning_innocence_1896_Painting.glb`)
   return (
     <group {...props} dispose={null}>
       {/* Removed the hardcoded rotation and scale to let App.jsx handle it via <Center> and modelData.scale */}
@@ -25,4 +25,4 @@ export function Model(props) {
   )
 }
 
-useGLTF.preload('/models/death_crowning_innocence_1896_Painting.glb')
+useGLTF.preload(`${import.meta.env.BASE_URL}models/death_crowning_innocence_1896_Painting.glb`)

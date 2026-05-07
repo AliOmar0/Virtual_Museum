@@ -11,7 +11,7 @@ import React from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Model(props) {
-  const { nodes, materials } = useGLTF('/models/painting_by_zdzislaw_beksinski_2.glb')
+  const { nodes, materials } = useGLTF(`${import.meta.env.BASE_URL}models/painting_by_zdzislaw_beksinski_2.glb`)
   return (
     <group {...props} dispose={null}>
       <group rotation={[-Math.PI / 2, 0, 0]} scale={2.382}>
@@ -30,4 +30,4 @@ export function Model(props) {
   )
 }
 
-useGLTF.preload('/models/painting_by_zdzislaw_beksinski_2.glb')
+useGLTF.preload(`${import.meta.env.BASE_URL}models/painting_by_zdzislaw_beksinski_2.glb`)

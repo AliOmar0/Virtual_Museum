@@ -11,7 +11,7 @@ import React from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Model(props) {
-  const { nodes, materials } = useGLTF('/models/frank.glb')
+  const { nodes, materials } = useGLTF(`${import.meta.env.BASE_URL}models/frank.glb`)
   // Restored to original gltfjsx export (both rotations preserved). Earlier
   // attempts to "simplify" the rotation broke his orientation. The pair of
   // rotations together is what makes Frank stand upright; AutoFit then takes
@@ -30,4 +30,4 @@ export function Model(props) {
   )
 }
 
-useGLTF.preload('/models/frank.glb')
+useGLTF.preload(`${import.meta.env.BASE_URL}models/frank.glb`)

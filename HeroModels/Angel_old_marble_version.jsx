@@ -11,7 +11,7 @@ import React from 'react'
 import { useGLTF } from '@react-three/drei'
 
 export function Model(props) {
-  const { nodes, materials } = useGLTF('/models/angel_old_marble_version.glb')
+  const { nodes, materials } = useGLTF(`${import.meta.env.BASE_URL}models/angel_old_marble_version.glb`)
   return (
     <group {...props} dispose={null}>
       <group scale={0.01}>
@@ -23,4 +23,4 @@ export function Model(props) {
   )
 }
 
-useGLTF.preload('/models/angel_old_marble_version.glb')
+useGLTF.preload(`${import.meta.env.BASE_URL}models/angel_old_marble_version.glb`)
