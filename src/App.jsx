@@ -1,237 +1,156 @@
-import React, { Suspense, useState, useEffect, useRef } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import {
-    OrbitControls,
-    Environment,
-    ContactShadows,
-    Html,
-    useProgress,
-    Float,
-    Center,
-    BakeShadows,
-    Preload
-} from '@react-three/drei'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Loader2, RotateCw, Info } from 'lucide-react'
-import { modelsData } from './data/models'
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useProgress } from '@react-three/drei'
 
-// Import all models
-import { Model as StarryNight } from '../HeroModels/TheStarryNight_painting'
-import { Model as Angel } from '../HeroModels/Angel_old_marble_version'
-import { Model as DeathCrowning } from '../HeroModels/Death_crowning_innocence_1896_Painting'
-import { Model as Frank } from '../HeroModels/Frank'
-import { Model as Laocoon } from '../HeroModels/Laocoon_and_his_sons'
-import { Model as LouisXIV } from '../HeroModels/Louis_xiv_de_france_louvre_paris'
-import { Model as Beksinski } from '../HeroModels/Painting_by_zdzislaw_beksinski_2'
-import { Model as Thinker } from '../HeroModels/The_thinker_by_auguste_rodin'
+import { modelsData as builtInModels } from './data/models'
+import Navbar from './components/ui/Navbar'
+import InfoPanel from './components/ui/InfoPanel'
+import Controls from './components/ui/Controls'
+import ThumbnailStrip from './components/ui/ThumbnailStrip'
+import FullscreenBtn from './components/ui/FullscreenBtn'
+import AudioBtn from './components/ui/AudioBtn'
+import AddModelDialog from './components/ui/AddModelDialog'
+import { useAmbientAudio } from './hooks/useAmbientAudio'
 
-const modelComponents = {
-    "TheStarryNight_painting": StarryNight,
-    "Angel_old_marble_version": Angel,
-    "Death_crowning_innocence_1896_Painting": DeathCrowning,
-    "Frank": Frank,
-    "Laocoon_and_his_sons": Laocoon,
-    "Louis_xiv_de_france_louvre_paris": LouisXIV,
-    "Painting_by_zdzislaw_beksinski_2": Beksinski,
-    "The_thinker_by_auguste_rodin": Thinker
-};
-
-const OFFSET_X = 4.2; // Slightly further right to avoid text
+const ViewerScene = lazy(() => import('./scenes/ViewerScene'))
+const WalkableScene = lazy(() => import('./scenes/WalkableScene'))
+const GridScene = lazy(() => import('./scenes/GridScene'))
 
 function FullScreenLoader() {
     const { progress } = useProgress()
     return (
-        <div className="loader">
+        <motion.div
+            className="loader"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+        >
             <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="logo"
-                style={{ fontSize: '3rem', fontWeight: 100, letterSpacing: '15px' }}
+                initial={{ opacity: 0, letterSpacing: '4px' }}
+                animate={{ opacity: 1, letterSpacing: '15px' }}
+                transition={{ duration: 1.2 }}
+                className="loader-title"
             >
                 MUSEUM
             </motion.div>
             <div className="loader-bar">
                 <motion.div
                     className="loader-progress"
-                    animate={{ width: `${progress}%` }}
-                ></motion.div>
+                    animate={{ width: `${Math.max(progress, 5)}%` }}
+                />
             </div>
-        </div>
+            <div className="loader-pct">{Math.floor(progress)}%</div>
+        </motion.div>
     )
 }
 
-function CanvasLoader() {
-    return (
-        <Html center>
-            <div style={{ color: 'white', display: 'flex', gap: '10px', alignItems: 'center', width: '200px' }}>
-                <Loader2 className="animate-spin" size={16} />
-                <span style={{ fontSize: '0.6rem', letterSpacing: '4px', textTransform: 'uppercase' }}>Entering Gallery...</span>
-            </div>
-        </Html>
-    )
-}
+export default function App() {
+    const [mode, setMode] = useState('viewer') // 'viewer' | 'walkable' | 'grid'
+    const [customModels, setCustomModels] = useState([])
+    const [currentIndex, setCurrentIndex] = useState(0)
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const { progress } = useProgress()
+    const { enabled: audioOn, toggle: toggleAudio } = useAmbientAudio()
 
-function ModelContainer({ modelData }) {
-    const ModelComponent = modelComponents[modelData.file];
-    const groupRef = useRef();
-
-    useFrame((state, delta) => {
-        if (modelData.type === 'statue' && groupRef.current) {
-            groupRef.current.rotation.y += delta * 0.15;
-        }
-    });
-
-    return (
-        <group position={[OFFSET_X, modelData.yOffset || 0, 0]}>
-            <group ref={groupRef}>
-                <Center>
-                    <group scale={modelData.scale}>
-                        <ModelComponent />
-                    </group>
-                </Center>
-            </group>
-        </group>
-    );
-}
-
-function Lighting() {
-    return (
-        <>
-            <ambientLight intensity={1.5} />
-            <directionalLight
-                position={[10, 10, 10]}
-                intensity={2.5}
-                castShadow
-                shadow-mapSize={[1024, 1024]}
-            />
-            <pointLight position={[OFFSET_X, 5, 5]} intensity={3} color="#ffffff" />
-            <pointLight position={[-OFFSET_X, 5, 5]} intensity={1} color="#4444ff" />
-            <spotLight
-                position={[OFFSET_X, 10, 0]}
-                intensity={4}
-                angle={0.5}
-                penumbra={1}
-            />
-        </>
-    )
-}
-
-const App = () => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-    const currentModel = modelsData[currentIndex];
-    const { progress } = useProgress();
+    const models = useMemo(() => [...builtInModels, ...customModels], [customModels])
+    const currentModel = models[currentIndex] || models[0]
 
     useEffect(() => {
-        if (progress === 100) {
-            const timer = setTimeout(() => setIsInitialLoad(false), 2000);
-            return () => clearTimeout(timer);
+        if (progress >= 100) {
+            const t = setTimeout(() => setIsInitialLoad(false), 800)
+            return () => clearTimeout(t)
         }
-    }, [progress]);
+    }, [progress])
 
-    const nextModel = () => {
-        setCurrentIndex((prev) => (prev + 1) % modelsData.length);
-    };
+    // Safety net — if Three never reports progress (e.g., WebGL unavailable), reveal UI after 1.5s
+    useEffect(() => {
+        const t = setTimeout(() => setIsInitialLoad(false), 1500)
+        return () => clearTimeout(t)
+    }, [])
 
-    const prevModel = () => {
-        setCurrentIndex((prev) => (prev - 1 + modelsData.length) % modelsData.length);
-    };
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'ArrowRight') setCurrentIndex((i) => (i + 1) % models.length)
+            else if (e.key === 'ArrowLeft') setCurrentIndex((i) => (i - 1 + models.length) % models.length)
+            else if (e.key === '1') setMode('viewer')
+            else if (e.key === '2') setMode('walkable')
+            else if (e.key === '3') setMode('grid')
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [models.length])
+
+    const next = () => setCurrentIndex((i) => (i + 1) % models.length)
+    const prev = () => setCurrentIndex((i) => (i - 1 + models.length) % models.length)
+    const handleAdd = (m) => {
+        setCustomModels((prev) => [...prev, m])
+        setCurrentIndex(models.length) // jump to new one (current models length before update == new index)
+    }
 
     return (
-        <div style={{ width: '100vw', height: '100vh', background: '#050505', overflow: 'hidden' }}>
+        <div className="app-root">
             <AnimatePresence>
-                {isInitialLoad && <FullScreenLoader key="main-loader" />}
+                {isInitialLoad && <FullScreenLoader key="boot" />}
             </AnimatePresence>
 
-            {!isInitialLoad && (
-                <>
-                    <nav className="navbar">
-                        <div className="logo">VIRTUAL MUSEUM</div>
-                        <div className="navbar-links">
-                            <span>GALLERY</span>
-                            <span>COLLECTIONS</span>
-                        </div>
-                    </nav>
+            <Navbar
+                mode={mode}
+                onModeChange={setMode}
+                onAddModel={() => setDialogOpen(true)}
+            />
 
-                    <div className="controls">
-                        <button className="control-btn" onClick={prevModel}><ArrowLeft size={18} /></button>
-                        <div className="index-counter">{(currentIndex + 1).toString().padStart(2, '0')} / {modelsData.length.toString().padStart(2, '0')}</div>
-                        <button className="control-btn" onClick={nextModel}><ArrowRight size={18} /></button>
-                    </div>
+            <div className="canvas-container">
+                <Suspense fallback={null}>
+                    {mode === 'viewer' && (
+                        <ViewerScene key={`v-${currentModel.id}`} modelData={currentModel} />
+                    )}
+                    {mode === 'walkable' && (
+                        <WalkableScene models={models} currentIndex={currentIndex} />
+                    )}
+                    {mode === 'grid' && (
+                        <GridScene
+                            models={models}
+                            currentIndex={currentIndex}
+                            onSelect={setCurrentIndex}
+                        />
+                    )}
+                </Suspense>
+            </div>
 
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={currentModel.id}
-                            initial={{ opacity: 0, x: -30 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 30 }}
-                            transition={{ duration: 0.6, ease: "easeOut" }}
-                            className="info-panel"
-                        >
-                            <div className="artist-badge">{currentModel.artist}</div>
-                            <h1 className="model-title" style={{ fontSize: '4.5rem', lineHeight: 1 }}>{currentModel.title}</h1>
-                            <div className="year-tag">{currentModel.year}</div>
-                            <p className="model-description">
-                                {currentModel.description}
-                            </p>
+            <AnimatePresence mode="wait">
+                <InfoPanel key={currentModel.id + mode} model={currentModel} compact={mode !== 'viewer'} />
+            </AnimatePresence>
 
-                            <button className="details-btn">
-                                <Info size={14} /> VIEW EXHIBIT DATA
-                            </button>
-                        </motion.div>
-                    </AnimatePresence>
+            <div className="bottom-bar">
+                <Controls
+                    index={currentIndex}
+                    total={models.length}
+                    onPrev={prev}
+                    onNext={next}
+                />
+                <ThumbnailStrip
+                    models={models}
+                    currentIndex={currentIndex}
+                    onSelect={setCurrentIndex}
+                />
+                <div className="utility-cluster">
+                    <AudioBtn enabled={audioOn} onToggle={toggleAudio} />
+                    <FullscreenBtn />
+                </div>
+            </div>
 
-                    <div className="canvas-container">
-                        <Canvas
-                            shadows
-                            dpr={[1, 2]}
-                            camera={{ position: [0, 0, 15], fov: 30 }}
-                        >
-                            <color attach="background" args={['#050505']} />
-                            <fog attach="fog" args={['#050505', 10, 40]} />
+            <div className="hint">
+                {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch'}
+                {mode === 'walkable' && 'Drag to look · Scroll to move closer · ← → to walk'}
+                {mode === 'grid' && 'Click any exhibit to focus · Drag to orbit · ← →'}
+            </div>
 
-                            <Suspense fallback={<CanvasLoader />}>
-                                <Environment preset="night" intensity={0.8} />
-
-                                <Float speed={1.5} rotationIntensity={0.15} floatIntensity={0.15}>
-                                    <ModelContainer key={currentModel.id} modelData={currentModel} />
-                                </Float>
-
-                                <ContactShadows
-                                    scale={30}
-                                    blur={2}
-                                    opacity={0.3}
-                                    far={10}
-                                    position={[OFFSET_X, -4, 0]}
-                                />
-
-                                <BakeShadows />
-                            </Suspense>
-
-                            {currentModel.type === 'statue' && (
-                                <OrbitControls
-                                    key={currentModel.id}
-                                    enablePan={false}
-                                    enableZoom={true}
-                                    minDistance={5}
-                                    maxDistance={30}
-                                    target={[OFFSET_X, 0, 0]}
-                                    makeDefault
-                                />
-                            )}
-
-                            <Lighting />
-                            <Preload all />
-                        </Canvas>
-                    </div>
-
-                    <div className="drag-hint">
-                        {currentModel.type === 'statue' ? <><RotateCw size={12} /> INTERACTIVE ROTATION</> : `FIXED EXHIBIT`}
-                    </div>
-                </>
-            )}
+            <AddModelDialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                onAdd={handleAdd}
+            />
         </div>
     )
 }
-
-export default App
