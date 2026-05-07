@@ -661,3 +661,36 @@ button { font-family: inherit; cursor: pointer; }
     object-fit: cover;
     border-radius: 4px;
 }
+
+/* ============== INFO PANEL: long-text safety ============== */
+.info-panel {
+    max-width: 360px;
+}
+.info-panel.compact {
+    max-width: 320px;
+}
+.artist-badge {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+    max-width: 100%;
+}
+.model-title {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    line-height: 1.15;
+}
+.model-description {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    line-height: 1.55;
+    max-height: 38vh;
+    overflow-y: auto;
+    padding-right: 0.4rem;
+}
+.model-description::-webkit-scrollbar { width: 4px; }
+.model-description::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
+.meta-row { word-wrap: break-word; overflow-wrap: break-word; }
+.meta-location { word-wrap: break-word; overflow-wrap: break-word; }

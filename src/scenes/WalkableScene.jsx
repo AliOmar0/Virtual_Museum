@@ -1,6 +1,6 @@
 import React, { Suspense, useRef, useMemo, useEffect, useState, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Environment, PointerLockControls } from '@react-three/drei'
+import { OrbitControls, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { MuseumRoom } from '../components/MuseumRoom'
 import { Exhibit } from '../components/ExhibitDisplay'
@@ -17,10 +17,9 @@ import {
 const PAINTING_TARGET = 2.6
 const lerp = (a, b, t) => a + (b - a) * t
 
-function CameraDriver({ targetPos, lookAt, controlsRef, enabled }) {
+function CameraDriver({ targetPos, lookAt, controlsRef, onPose }) {
     const { camera } = useThree()
     useFrame(() => {
-        if (!enabled) return
         camera.position.x += (targetPos[0] - camera.position.x) * 0.06
         camera.position.y += (targetPos[1] - camera.position.y) * 0.06
         camera.position.z += (targetPos[2] - camera.position.z) * 0.06
@@ -31,78 +30,21 @@ function CameraDriver({ targetPos, lookAt, controlsRef, enabled }) {
             t.z += (lookAt[2] - t.z) * 0.06
             controlsRef.current.update()
         }
+        // Report camera pose for the minimap (yaw derived from look direction)
+        if (onPose) {
+            const dx = controlsRef.current ? controlsRef.current.target.x - camera.position.x : 0
+            const dz = controlsRef.current ? controlsRef.current.target.z - camera.position.z : -1
+            const yaw = Math.atan2(dx, -dz)
+            onPose(camera.position.x, camera.position.z, yaw)
+        }
     })
     return null
-}
-
-/**
- * First-person walk controller: WASD to move, mouse to look. Constrained to
- * the room bounds.
- */
-function FPWalker({ enabled, bounds, onPositionChange }) {
-    const { camera } = useThree()
-    const keys = useRef({ w: false, a: false, s: false, d: false, shift: false })
-    const velocity = useRef(new THREE.Vector3())
-
-    useEffect(() => {
-        if (!enabled) return
-        const down = (e) => {
-            if (e.repeat) return
-            const k = e.key.toLowerCase()
-            if (k in keys.current) keys.current[k] = true
-            if (e.key === 'Shift') keys.current.shift = true
-        }
-        const up = (e) => {
-            const k = e.key.toLowerCase()
-            if (k in keys.current) keys.current[k] = false
-            if (e.key === 'Shift') keys.current.shift = false
-        }
-        window.addEventListener('keydown', down)
-        window.addEventListener('keyup', up)
-        // Snap eye height when entering FP mode
-        camera.position.y = 1.65
-        return () => {
-            window.removeEventListener('keydown', down)
-            window.removeEventListener('keyup', up)
-        }
-    }, [enabled, camera])
-
-    useFrame((_, dt) => {
-        if (!enabled) return
-        const speed = (keys.current.shift ? 6 : 3) * dt
-        const forward = new THREE.Vector3()
-        camera.getWorldDirection(forward)
-        forward.y = 0
-        forward.normalize()
-        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize()
-
-        velocity.current.set(0, 0, 0)
-        if (keys.current.w) velocity.current.add(forward)
-        if (keys.current.s) velocity.current.sub(forward)
-        if (keys.current.d) velocity.current.add(right)
-        if (keys.current.a) velocity.current.sub(right)
-        if (velocity.current.lengthSq() > 0) {
-            velocity.current.normalize().multiplyScalar(speed)
-            camera.position.add(velocity.current)
-        }
-        camera.position.y = 1.65
-
-        // Clamp inside room
-        const halfW = ROOM_WIDTH / 2 - 0.6
-        camera.position.x = Math.max(-halfW, Math.min(halfW, camera.position.x))
-        camera.position.z = Math.max(bounds.minZ + 0.6, Math.min(bounds.maxZ - 0.6, camera.position.z))
-
-        if (onPositionChange) onPositionChange(camera.position.x, camera.position.z, camera.rotation.y)
-    })
-
-    return enabled ? <PointerLockControls /> : null
 }
 
 export default function WalkableScene({
     models,
     currentIndex,
     lightingValue = 0,
-    walkMode = false,
     onCameraMove,
 }) {
     const { placements, dividers, endZ } = useMemo(() => computeLayout(models), [models])
@@ -144,8 +86,6 @@ export default function WalkableScene({
         }
         return { pos: [x, 1.7, z + 5.5], look: [x, 1.4, z] }
     }, [current])
-
-    const bounds = useMemo(() => ({ minZ: -roomDepth + 1, maxZ: 4 }), [roomDepth])
 
     // Lighting interpolation
     const dirIntensity = lerp(0.65, 0.25, lightingValue)
@@ -281,24 +221,23 @@ export default function WalkableScene({
                 })}
             </Suspense>
 
-            {/* Camera control: orbit + auto-drive when not walking, FP walker when walking */}
-            {!walkMode && (
-                <CameraDriver targetPos={cam.pos} lookAt={cam.look} controlsRef={controlsRef} enabled={!walkMode} />
-            )}
-            <FPWalker enabled={walkMode} bounds={bounds} onPositionChange={onCameraMove} />
-            {!walkMode && (
-                <OrbitControls
-                    ref={controlsRef}
-                    enablePan={false}
-                    minDistance={2}
-                    maxDistance={20}
-                    maxPolarAngle={Math.PI / 1.95}
-                    target={cam.look}
-                    makeDefault
-                    enableDamping
-                    dampingFactor={0.1}
-                />
-            )}
+            <CameraDriver
+                targetPos={cam.pos}
+                lookAt={cam.look}
+                controlsRef={controlsRef}
+                onPose={onCameraMove}
+            />
+            <OrbitControls
+                ref={controlsRef}
+                enablePan={false}
+                minDistance={2}
+                maxDistance={20}
+                maxPolarAngle={Math.PI / 1.95}
+                target={cam.look}
+                makeDefault
+                enableDamping
+                dampingFactor={0.1}
+            />
         </Canvas>
     )
 }

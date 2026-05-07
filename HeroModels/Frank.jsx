@@ -17,7 +17,7 @@ export function Model(props) {
   // AutoFit can normalize him standing on his feet.
   return (
     <group {...props} dispose={null}>
-      <group rotation={[-Math.PI / 2, 0, 0]} scale={0.336}>
+      <group rotation={[Math.PI / 2, 0, 0]} scale={0.336}>
         <mesh
           geometry={nodes.FranksC352SC130kDC32270kM2064k_0.geometry}
           material={materials['Franks.C352.SC130k.DC32270k.M2064k']}

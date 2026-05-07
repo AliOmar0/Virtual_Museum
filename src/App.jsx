@@ -88,7 +88,6 @@ export default function App() {
         const v = fromHash.light !== undefined ? fromHash.light : persisted.light
         return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
     })
-    const [walkMode, setWalkMode] = useState(false)
     const [minimapOn, setMinimapOn] = useState(persisted.minimap ?? true)
     const [cameraPose, setCameraPose] = useState({ x: 0, z: 4, yaw: 0 })
     const [thumbVersion, setThumbVersion] = useState(0)
@@ -259,7 +258,6 @@ export default function App() {
                             models={models}
                             currentIndex={currentIndex}
                             lightingValue={lightingValue}
-                            walkMode={walkMode}
                             onCameraMove={handleCameraMove}
                         />
                     )}
@@ -273,22 +271,6 @@ export default function App() {
                     )}
                 </Suspense>
             </div>
-
-            {/* Walk-mode toggle (gallery only) */}
-            {mode === 'walkable' && (
-                <div className="walk-toggle">
-                    <button
-                        className={`mode-btn ${walkMode ? 'active' : ''}`}
-                        onClick={() => setWalkMode((v) => !v)}
-                        title={walkMode ? 'Exit walk mode (press Esc to release pointer)' : 'Walk freely with WASD + mouse'}
-                    >
-                        {walkMode ? 'Exit Walk' : 'Walk Mode'}
-                    </button>
-                    {walkMode && (
-                        <div className="walk-help">Click canvas to capture pointer · WASD to move · Shift to sprint · Esc to release</div>
-                    )}
-                </div>
-            )}
 
             {/* Minimap (gallery only) */}
             {mode === 'walkable' && minimapOn && minimapLayout && (
@@ -328,7 +310,7 @@ export default function App() {
 
             <div className="hint">
                 {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch'}
-                {mode === 'walkable' && (walkMode ? 'WASD to move · Mouse to look · Esc to release' : 'Drag to look · ← → to walk · M for map')}
+                {mode === 'walkable' && 'Drag to look · ← → to walk between exhibits · M for map'}
                 {mode === 'grid' && 'Click any exhibit · Drag to orbit · ← →'}
             </div>
 
