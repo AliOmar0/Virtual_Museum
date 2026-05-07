@@ -1,45 +1,26 @@
-import React, { Suspense, useRef, useMemo } from 'react'
+import React, { Suspense, useRef, useMemo, useEffect, useState, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Environment } from '@react-three/drei'
+import { OrbitControls, Environment, PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { MuseumRoom } from '../components/MuseumRoom'
 import { Exhibit } from '../components/ExhibitDisplay'
 import { ModelLoadingFallback } from '../components/ModelLoader'
-import { Bench, Column, PendantLamp, WallMolding, Plant } from '../components/Decor'
+import {
+    Bench, Column, PendantLamp, WallMolding, Plant,
+    WallPanel, Plaque, RoomDivider, RoomBanner,
+} from '../components/Decor'
+import {
+    computeLayout, categoryMeta,
+    ROOM_WIDTH, ROOM_HEIGHT, SPACING, PAINTING_Y,
+} from './walkableLayout'
 
-const ROOM_WIDTH = 16
-const ROOM_HEIGHT = 8
-const SPACING = 7
-const PAINTING_Y = 3.2 // wall mount height (center of painting)
+const PAINTING_TARGET = 2.6
+const lerp = (a, b, t) => a + (b - a) * t
 
-function computeLayout(models) {
-    const placements = []
-    let paintingIdx = 0
-    let statueIdx = 0
-
-    models.forEach((m) => {
-        if (m.type === 'painting') {
-            const onLeft = paintingIdx % 2 === 0
-            const z = -((Math.floor(paintingIdx / 2)) * SPACING + 4)
-            const x = onLeft ? -ROOM_WIDTH / 2 + 0.15 : ROOM_WIDTH / 2 - 0.15
-            // Painting local +Z is its "front". After Y-rotation, world front = (sin(rotY), 0, cos(rotY)).
-            // Left wall (x = -8): want front facing +X → sin(rotY)=+1 → rotY = +π/2
-            // Right wall (x = +8): want front facing -X → sin(rotY)=-1 → rotY = -π/2
-            const rotY = onLeft ? Math.PI / 2 : -Math.PI / 2
-            placements.push({ model: m, position: [x, PAINTING_Y, z], rotationY: rotY })
-            paintingIdx++
-        } else {
-            const z = -(statueIdx * SPACING + 6)
-            placements.push({ model: m, position: [0, 0, z], rotationY: 0 })
-            statueIdx++
-        }
-    })
-    return placements
-}
-
-function CameraDriver({ targetPos, lookAt, controlsRef }) {
+function CameraDriver({ targetPos, lookAt, controlsRef, enabled }) {
     const { camera } = useThree()
     useFrame(() => {
+        if (!enabled) return
         camera.position.x += (targetPos[0] - camera.position.x) * 0.06
         camera.position.y += (targetPos[1] - camera.position.y) * 0.06
         camera.position.z += (targetPos[2] - camera.position.z) * 0.06
@@ -54,42 +35,100 @@ function CameraDriver({ targetPos, lookAt, controlsRef }) {
     return null
 }
 
-export default function WalkableScene({ models, currentIndex, dramatic = false }) {
-    const placements = useMemo(() => computeLayout(models), [models])
+/**
+ * First-person walk controller: WASD to move, mouse to look. Constrained to
+ * the room bounds.
+ */
+function FPWalker({ enabled, bounds, onPositionChange }) {
+    const { camera } = useThree()
+    const keys = useRef({ w: false, a: false, s: false, d: false, shift: false })
+    const velocity = useRef(new THREE.Vector3())
+
+    useEffect(() => {
+        if (!enabled) return
+        const down = (e) => {
+            if (e.repeat) return
+            const k = e.key.toLowerCase()
+            if (k in keys.current) keys.current[k] = true
+            if (e.key === 'Shift') keys.current.shift = true
+        }
+        const up = (e) => {
+            const k = e.key.toLowerCase()
+            if (k in keys.current) keys.current[k] = false
+            if (e.key === 'Shift') keys.current.shift = false
+        }
+        window.addEventListener('keydown', down)
+        window.addEventListener('keyup', up)
+        // Snap eye height when entering FP mode
+        camera.position.y = 1.65
+        return () => {
+            window.removeEventListener('keydown', down)
+            window.removeEventListener('keyup', up)
+        }
+    }, [enabled, camera])
+
+    useFrame((_, dt) => {
+        if (!enabled) return
+        const speed = (keys.current.shift ? 6 : 3) * dt
+        const forward = new THREE.Vector3()
+        camera.getWorldDirection(forward)
+        forward.y = 0
+        forward.normalize()
+        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize()
+
+        velocity.current.set(0, 0, 0)
+        if (keys.current.w) velocity.current.add(forward)
+        if (keys.current.s) velocity.current.sub(forward)
+        if (keys.current.d) velocity.current.add(right)
+        if (keys.current.a) velocity.current.sub(right)
+        if (velocity.current.lengthSq() > 0) {
+            velocity.current.normalize().multiplyScalar(speed)
+            camera.position.add(velocity.current)
+        }
+        camera.position.y = 1.65
+
+        // Clamp inside room
+        const halfW = ROOM_WIDTH / 2 - 0.6
+        camera.position.x = Math.max(-halfW, Math.min(halfW, camera.position.x))
+        camera.position.z = Math.max(bounds.minZ + 0.6, Math.min(bounds.maxZ - 0.6, camera.position.z))
+
+        if (onPositionChange) onPositionChange(camera.position.x, camera.position.z, camera.rotation.y)
+    })
+
+    return enabled ? <PointerLockControls /> : null
+}
+
+export default function WalkableScene({
+    models,
+    currentIndex,
+    lightingValue = 0,
+    walkMode = false,
+    onCameraMove,
+}) {
+    const { placements, dividers, endZ } = useMemo(() => computeLayout(models), [models])
     const controlsRef = useRef()
 
-    const roomDepth = useMemo(() => {
-        const maxBack = placements.reduce((acc, p) => Math.min(acc, p.position[2]), 0)
-        return Math.max(40, Math.abs(maxBack) * 2 + 16)
-    }, [placements])
+    const roomDepth = useMemo(() => Math.max(40, Math.abs(endZ) + 12), [endZ])
 
-    // Decorative elements derived from room depth
     const decor = useMemo(() => {
         const lamps = []
         const benches = []
         const columns = []
         const plants = []
-
-        // Pendant lamps every 6m
-        for (let z = -2; z > -roomDepth / 2 + 2; z -= 6) {
+        for (let z = -2; z > -roomDepth + 4; z -= 7) {
             lamps.push([0, ROOM_HEIGHT - 0.05, z])
         }
-        // Benches between statue spots, off-center
-        for (let i = 0; i < Math.floor(roomDepth / 14); i++) {
-            const z = -(i * 14 + 9.5)
-            if (z < -roomDepth / 2 + 3) break
-            benches.push({ position: [3.5, 0, z], rotY: -Math.PI / 2 })
-            benches.push({ position: [-3.5, 0, z], rotY: Math.PI / 2 })
+        for (let z = -10; z > -roomDepth + 4; z -= 18) {
+            benches.push({ position: [3.8, 0, z], rotY: -Math.PI / 2 })
+            benches.push({ position: [-3.8, 0, z], rotY: Math.PI / 2 })
         }
-        // Decorative columns along walls
-        for (let z = -3; z > -roomDepth / 2 + 2; z -= SPACING) {
+        for (let z = -3; z > -roomDepth + 4; z -= SPACING) {
             columns.push([-ROOM_WIDTH / 2 + 0.6, 0, z + SPACING / 2])
             columns.push([ROOM_WIDTH / 2 - 0.6, 0, z + SPACING / 2])
         }
-        // Plants near columns, intermittently
-        for (let z = -6; z > -roomDepth / 2 + 2; z -= SPACING * 2) {
-            plants.push([-ROOM_WIDTH / 2 + 1.4, 0, z])
-            plants.push([ROOM_WIDTH / 2 - 1.4, 0, z])
+        for (let z = -6; z > -roomDepth + 4; z -= SPACING * 2) {
+            plants.push([-ROOM_WIDTH / 2 + 1.5, 0, z])
+            plants.push([ROOM_WIDTH / 2 - 1.5, 0, z])
         }
         return { lamps, benches, columns, plants }
     }, [roomDepth])
@@ -99,34 +138,44 @@ export default function WalkableScene({ models, currentIndex, dramatic = false }
         if (!current) return { pos: [0, 1.7, 5], look: [0, 1.7, 0] }
         const [x, y, z] = current.position
         if (current.model.type === 'painting') {
-            // Place camera in front of the painting (along its forward direction),
-            // i.e. in the room — not behind the wall.
             const fx = Math.sin(current.rotationY)
             const fz = Math.cos(current.rotationY)
-            return { pos: [x + fx * 5, 2.4, z + fz * 5], look: [x, y, z] }
+            return { pos: [x + fx * 5.5, 2.4, z + fz * 5.5], look: [x, y, z] }
         }
-        return { pos: [x, 1.7, z + 5], look: [x, 1.4, z] }
+        return { pos: [x, 1.7, z + 5.5], look: [x, 1.4, z] }
     }, [current])
+
+    const bounds = useMemo(() => ({ minZ: -roomDepth + 1, maxZ: 4 }), [roomDepth])
+
+    // Lighting interpolation
+    const dirIntensity = lerp(0.65, 0.25, lightingValue)
+    const ambIntensity = lerp(0.3, 0.08, lightingValue)
+    const hemiIntensity = lerp(0.25, 0.06, lightingValue)
+    const envIntensity = lerp(0.3, 0.1, lightingValue)
+    const fogNear = lerp(12, 8, lightingValue)
+    const fogFar = lerp(55, 38, lightingValue)
+    const exposure = lerp(1.0, 0.85, lightingValue)
+    const lampIntensity = lerp(0.6, 0.95, lightingValue)
 
     return (
         <Canvas
             shadows
             dpr={[1, 1.5]}
-            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dramatic ? 0.85 : 1.0 }}
-            camera={{ position: [0, 1.7, 5], fov: 55 }}
+            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: exposure }}
+            camera={{ position: [0, 1.7, 5], fov: 60 }}
         >
             <color attach="background" args={['#050403']} />
-            <fog attach="fog" args={['#050403', dramatic ? 8 : 12, dramatic ? 38 : 55]} />
+            <fog attach="fog" args={['#050403', fogNear, fogFar]} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="apartment" environmentIntensity={dramatic ? 0.1 : 0.3} />
+                <Environment preset="apartment" environmentIntensity={envIntensity} />
 
-                <ambientLight intensity={dramatic ? 0.08 : 0.3} />
-                <hemisphereLight args={['#fff1d6', '#0a0908', dramatic ? 0.06 : 0.25]} />
+                <ambientLight intensity={ambIntensity} />
+                <hemisphereLight args={['#fff1d6', '#0a0908', hemiIntensity]} />
 
                 <directionalLight
                     position={[6, 10, 4]}
-                    intensity={dramatic ? 0.25 : 0.65}
+                    intensity={dirIntensity}
                     castShadow
                     shadow-mapSize={[1024, 1024]}
                     shadow-camera-left={-12}
@@ -143,18 +192,18 @@ export default function WalkableScene({ models, currentIndex, dramatic = false }
                     hasReflectiveFloor={false}
                 />
 
-                {/* Wall molding strips along both side walls */}
-                <WallMolding length={roomDepth} position={[-ROOM_WIDTH / 2 + 0.06, 4.0, 0]} rotationY={Math.PI / 2} />
-                <WallMolding length={roomDepth} position={[ROOM_WIDTH / 2 - 0.06, 4.0, 0]} rotationY={-Math.PI / 2} />
+                {/* Wall molding strips */}
+                <WallMolding length={roomDepth} position={[-ROOM_WIDTH / 2 + 0.06, 4.2, 0]} rotationY={Math.PI / 2} />
+                <WallMolding length={roomDepth} position={[ROOM_WIDTH / 2 - 0.06, 4.2, 0]} rotationY={-Math.PI / 2} />
                 <WallMolding length={roomDepth} position={[-ROOM_WIDTH / 2 + 0.06, 1.0, 0]} rotationY={Math.PI / 2} />
                 <WallMolding length={roomDepth} position={[ROOM_WIDTH / 2 - 0.06, 1.0, 0]} rotationY={-Math.PI / 2} />
 
-                {/* Pendant ceiling lamps down the centerline */}
+                {/* Pendant lamps */}
                 {decor.lamps.map((p, i) => (
-                    <PendantLamp key={`lamp-${i}`} position={p} cordLength={1.2} />
+                    <PendantLamp key={`lamp-${i}`} position={p} cordLength={1.2} intensity={lampIntensity} />
                 ))}
 
-                {/* Decorative columns */}
+                {/* Columns */}
                 {decor.columns.map((p, i) => (
                     <Column key={`col-${i}`} position={p} height={ROOM_HEIGHT - 0.1} radius={0.28} />
                 ))}
@@ -169,32 +218,88 @@ export default function WalkableScene({ models, currentIndex, dramatic = false }
                     <Plant key={`plant-${i}`} position={p} scale={1.1} />
                 ))}
 
-                {placements.map(({ model, position, rotationY }, i) => (
-                    <Exhibit
-                        key={model.id}
-                        modelData={model}
-                        position={position}
-                        rotationY={rotationY}
-                        withSpotlight={i === currentIndex}
-                        withPedestal
-                        targetSize={model.type === 'painting' ? 3.0 : undefined}
-                    />
+                {/* Room dividers / banners */}
+                {dividers.map((d, i) => (
+                    <React.Fragment key={`div-${i}`}>
+                        {!d.first && <RoomDivider z={d.z} width={ROOM_WIDTH} color={d.accent} />}
+                        <RoomBanner z={d.z} label={d.label} accent={d.accent} height={ROOM_HEIGHT - 0.4} />
+                    </React.Fragment>
                 ))}
+
+                {/* Exhibits */}
+                {placements.map(({ model, position, rotationY, category }, i) => {
+                    const accent = categoryMeta(category).accent
+                    const isPainting = model.type === 'painting'
+                    return (
+                        <group key={model.id}>
+                            {/* Wall panel behind paintings — gives them their own "spot" */}
+                            {isPainting && (
+                                <WallPanel
+                                    position={[position[0] + Math.sin(rotationY) * 0.02, PAINTING_Y, position[2]]}
+                                    rotationY={rotationY}
+                                    width={SPACING - 1.5}
+                                    height={4.4}
+                                />
+                            )}
+                            <Exhibit
+                                modelData={model}
+                                position={position}
+                                rotationY={rotationY}
+                                withSpotlight={i === currentIndex}
+                                withPedestal={!isPainting}
+                                targetSize={isPainting ? PAINTING_TARGET : undefined}
+                            />
+                            {/* Plaque */}
+                            {isPainting ? (
+                                <Plaque
+                                    title={model.title}
+                                    artist={model.artist}
+                                    year={model.year}
+                                    medium={model.medium}
+                                    mode="wall"
+                                    accent={accent}
+                                    position={[
+                                        position[0] - Math.sin(rotationY) * 0.06,
+                                        PAINTING_Y - 1.7,
+                                        position[2],
+                                    ]}
+                                    rotationY={rotationY}
+                                />
+                            ) : (
+                                <Plaque
+                                    title={model.title}
+                                    artist={model.artist}
+                                    year={model.year}
+                                    medium={model.medium}
+                                    mode="pedestal"
+                                    accent={accent}
+                                    position={[position[0], 0.55, position[2] + 0.66]}
+                                />
+                            )}
+                        </group>
+                    )
+                })}
             </Suspense>
 
-            <CameraDriver targetPos={cam.pos} lookAt={cam.look} controlsRef={controlsRef} />
-
-            <OrbitControls
-                ref={controlsRef}
-                enablePan={false}
-                minDistance={2}
-                maxDistance={20}
-                maxPolarAngle={Math.PI / 1.95}
-                target={cam.look}
-                makeDefault
-                enableDamping
-                dampingFactor={0.1}
-            />
+            {/* Camera control: orbit + auto-drive when not walking, FP walker when walking */}
+            {!walkMode && (
+                <CameraDriver targetPos={cam.pos} lookAt={cam.look} controlsRef={controlsRef} enabled={!walkMode} />
+            )}
+            <FPWalker enabled={walkMode} bounds={bounds} onPositionChange={onCameraMove} />
+            {!walkMode && (
+                <OrbitControls
+                    ref={controlsRef}
+                    enablePan={false}
+                    minDistance={2}
+                    maxDistance={20}
+                    maxPolarAngle={Math.PI / 1.95}
+                    target={cam.look}
+                    makeDefault
+                    enableDamping
+                    dampingFactor={0.1}
+                />
+            )}
         </Canvas>
     )
 }
+

@@ -12,10 +12,17 @@ import { useGLTF } from '@react-three/drei'
 
 export function Model(props) {
   const { nodes, materials } = useGLTF('/models/frank.glb')
+  // Original gltfjsx export had an awkward inner-mesh rotation that left Frank
+  // tilted/upside-down. We strip that and apply a clean upright orientation so
+  // AutoFit can normalize him standing on his feet.
   return (
     <group {...props} dispose={null}>
       <group rotation={[-Math.PI / 2, 0, 0]} scale={0.336}>
-        <mesh geometry={nodes.FranksC352SC130kDC32270kM2064k_0.geometry} material={materials['Franks.C352.SC130k.DC32270k.M2064k']} rotation={[-2.696, -0.624, -0.704]} scale={0.188} />
+        <mesh
+          geometry={nodes.FranksC352SC130kDC32270kM2064k_0.geometry}
+          material={materials['Franks.C352.SC130k.DC32270k.M2064k']}
+          scale={0.188}
+        />
       </group>
     </group>
   )

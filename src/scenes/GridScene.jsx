@@ -4,12 +4,15 @@ import { OrbitControls, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import { Exhibit } from '../components/ExhibitDisplay'
 import { ModelLoadingFallback } from '../components/ModelLoader'
-import { PendantLamp, Plant, Column } from '../components/Decor'
+import { PendantLamp, Plant, Column, Plaque } from '../components/Decor'
+import { CATEGORIES } from '../data/models'
 
 const COLS = 4
-const COL_SPACING = 5
-const ROW_SPACING = 5.5
-const PAINTING_DISPLAY_Y = 1.8 // center of painting on its display stand
+const COL_SPACING = 5.5
+const ROW_SPACING = 6
+const PAINTING_DISPLAY_Y = 1.8
+
+const lerp = (a, b, t) => a + (b - a) * t
 
 function gridLayout(models) {
     return models.map((m, i) => {
@@ -38,19 +41,13 @@ function CameraDriver({ targetPos, lookAt, controlsRef }) {
     return null
 }
 
-/**
- * Display stand for paintings in grid view — a thin vertical back panel with
- * a base, so paintings hang at eye level instead of sitting on the floor.
- */
 function PaintingStand({ position = [0, 0, 0], height = 3.4 }) {
     return (
         <group position={position}>
-            {/* Base */}
             <mesh receiveShadow castShadow position={[0, 0.05, 0]}>
                 <boxGeometry args={[2.0, 0.1, 0.6]} />
                 <meshStandardMaterial color="#cfc8bd" roughness={0.5} metalness={0.1} />
             </mesh>
-            {/* Vertical panel behind the painting */}
             <mesh receiveShadow castShadow position={[0, height / 2, -0.18]}>
                 <boxGeometry args={[2.0, height, 0.08]} />
                 <meshStandardMaterial color="#1f1a16" roughness={0.85} metalness={0.05} />
@@ -59,7 +56,7 @@ function PaintingStand({ position = [0, 0, 0], height = 3.4 }) {
     )
 }
 
-export default function GridScene({ models, currentIndex, onSelect, dramatic = false }) {
+export default function GridScene({ models, currentIndex, onSelect, lightingValue = 0 }) {
     const placements = useMemo(() => gridLayout(models), [models])
     const controlsRef = useRef()
     const current = placements[currentIndex] || placements[0]
@@ -77,7 +74,6 @@ export default function GridScene({ models, currentIndex, onSelect, dramatic = f
     const floorWidth = COL_SPACING * COLS + 8
     const floorDepth = ROW_SPACING * rows + 10
 
-    // Decorative ceiling lamps over each cell
     const lamps = useMemo(() => {
         const out = []
         for (let r = 0; r < rows; r++) {
@@ -90,25 +86,34 @@ export default function GridScene({ models, currentIndex, onSelect, dramatic = f
         return out
     }, [rows])
 
+    const dirIntensity = lerp(0.85, 0.3, lightingValue)
+    const ambIntensity = lerp(0.4, 0.12, lightingValue)
+    const hemiIntensity = lerp(0.35, 0.08, lightingValue)
+    const envIntensity = lerp(0.45, 0.15, lightingValue)
+    const fogNear = lerp(18, 12, lightingValue)
+    const fogFar = lerp(65, 45, lightingValue)
+    const exposure = lerp(1.0, 0.85, lightingValue)
+    const lampIntensity = lerp(0.6, 0.95, lightingValue)
+
     return (
         <Canvas
             shadows
             dpr={[1, 1.5]}
-            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dramatic ? 0.85 : 1.0 }}
+            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: exposure }}
             camera={{ position: [0, 8, 14], fov: 45 }}
         >
             <color attach="background" args={['#0a0908']} />
-            <fog attach="fog" args={['#0a0908', dramatic ? 12 : 18, dramatic ? 45 : 65]} />
+            <fog attach="fog" args={['#0a0908', fogNear, fogFar]} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="warehouse" environmentIntensity={dramatic ? 0.15 : 0.45} />
+                <Environment preset="warehouse" environmentIntensity={envIntensity} />
 
-                <ambientLight intensity={dramatic ? 0.12 : 0.4} />
-                <hemisphereLight args={['#fff1d6', '#0a0908', dramatic ? 0.08 : 0.35]} />
+                <ambientLight intensity={ambIntensity} />
+                <hemisphereLight args={['#fff1d6', '#0a0908', hemiIntensity]} />
 
                 <directionalLight
                     position={[10, 14, 8]}
-                    intensity={dramatic ? 0.3 : 0.85}
+                    intensity={dirIntensity}
                     castShadow
                     shadow-mapSize={[1024, 1024]}
                     shadow-camera-left={-15}
@@ -118,18 +123,15 @@ export default function GridScene({ models, currentIndex, onSelect, dramatic = f
                     shadow-bias={-0.0005}
                 />
 
-                {/* Ceiling lamps over each exhibit */}
                 {lamps.map((p, i) => (
-                    <PendantLamp key={`grid-lamp-${i}`} position={p} cordLength={0.6} />
+                    <PendantLamp key={`grid-lamp-${i}`} position={p} cordLength={0.6} intensity={lampIntensity} />
                 ))}
 
-                {/* Corner columns */}
                 <Column position={[-(floorWidth / 2 - 0.6), 0, 1]} height={6} radius={0.3} />
                 <Column position={[(floorWidth / 2 - 0.6), 0, 1]} height={6} radius={0.3} />
                 <Column position={[-(floorWidth / 2 - 0.6), 0, floorCenterZ * 2 - 1]} height={6} radius={0.3} />
                 <Column position={[(floorWidth / 2 - 0.6), 0, floorCenterZ * 2 - 1]} height={6} radius={0.3} />
 
-                {/* Plants in the corners */}
                 <Plant position={[-(floorWidth / 2 - 1.6), 0, 0.2]} scale={1.1} />
                 <Plant position={[(floorWidth / 2 - 1.6), 0, 0.2]} scale={1.1} />
 
@@ -138,6 +140,7 @@ export default function GridScene({ models, currentIndex, onSelect, dramatic = f
                     const exhibitPos = isPainting
                         ? [position[0], PAINTING_DISPLAY_Y, position[2]]
                         : position
+                    const cat = (CATEGORIES.find((c) => c.id === model.category) || {}).accent || '#d4af37'
                     return (
                         <group
                             key={model.id}
@@ -151,17 +154,24 @@ export default function GridScene({ models, currentIndex, onSelect, dramatic = f
                                 withPedestal={!isPainting}
                                 targetSize={isPainting ? 2.4 : 1.7}
                             />
+                            <Plaque
+                                title={model.title}
+                                artist={model.artist}
+                                year={model.year}
+                                accent={cat}
+                                mode="pedestal"
+                                position={[position[0], 0.55, position[2] + (isPainting ? 0.36 : 0.66)]}
+                            />
                             {i === currentIndex && (
                                 <mesh rotation={[-Math.PI / 2, 0, 0]} position={[position[0], 0.02, position[2]]}>
-                                    <ringGeometry args={[1.5, 1.7, 64]} />
-                                    <meshBasicMaterial color="#d4af37" transparent opacity={0.85} />
+                                    <ringGeometry args={[1.6, 1.8, 64]} />
+                                    <meshBasicMaterial color={cat} transparent opacity={0.85} />
                                 </mesh>
                             )}
                         </group>
                     )
                 })}
 
-                {/* Floor */}
                 <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, floorCenterZ]} receiveShadow>
                     <planeGeometry args={[floorWidth, floorDepth]} />
                     <meshStandardMaterial color="#161412" roughness={0.9} metalness={0.1} />

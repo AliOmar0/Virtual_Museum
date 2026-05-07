@@ -1,16 +1,15 @@
 /**
- * Persistence layer for user-added models.
+ * Persistence layer for user-added models + thumbnails.
  *
  * - Metadata (title, type, scale, etc.) lives in localStorage.
  * - Binary .glb blobs (for "Upload file") live in IndexedDB so they survive
  *   page reloads. Each is keyed by the model id.
  * - URL-only models just store the URL string and reuse it on reload.
- *
- * On load, blob-backed models are rehydrated into fresh Blob URLs (object URLs
- * don't survive a page reload).
+ * - Per-model thumbnail data URLs live in localStorage under THUMB_KEY.
  */
 
 const LS_KEY = 'museum.customModels.v1'
+const THUMB_KEY = 'museum.thumbs.v1'
 const DB_NAME = 'museum-models'
 const STORE = 'blobs'
 
@@ -57,19 +56,13 @@ function readMeta() {
     try {
         const raw = localStorage.getItem(LS_KEY)
         return raw ? JSON.parse(raw) : []
-    } catch {
-        return []
-    }
+    } catch { return [] }
 }
 
 function writeMeta(list) {
     localStorage.setItem(LS_KEY, JSON.stringify(list))
 }
 
-/**
- * Load all persisted custom models. Returns an array of model objects ready to
- * drop into the gallery (with `remoteUrl` set to a usable URL or fresh blob URL).
- */
 export async function loadCustomModels() {
     const meta = readMeta()
     const out = []
@@ -80,9 +73,7 @@ export async function loadCustomModels() {
                 if (!blob) continue
                 const url = URL.createObjectURL(blob)
                 out.push({ ...m, remoteUrl: url, _custom: true })
-            } catch {
-                // Skip if IDB read fails
-            }
+            } catch { /* skip */ }
         } else if (m.remoteUrl) {
             out.push({ ...m, _custom: true })
         }
@@ -90,13 +81,6 @@ export async function loadCustomModels() {
     return out
 }
 
-/**
- * Persist a model added via the dialog.
- *  - If `file` is provided: store the file bytes in IDB; metadata records `_blobKey`.
- *  - Otherwise: just store the metadata (with the remote URL).
- *
- * Returns the meta object actually persisted (without the volatile blob URL).
- */
 export async function saveCustomModel(model, file) {
     const meta = readMeta()
     const persisted = {
@@ -105,7 +89,11 @@ export async function saveCustomModel(model, file) {
         artist: model.artist,
         year: model.year,
         type: model.type,
+        category: model.category,
         description: model.description,
+        medium: model.medium,
+        dimensions: model.dimensions,
+        location: model.location,
         file: model.file,
         sourceUrl: model.sourceUrl,
         scale: model.scale,
@@ -122,12 +110,36 @@ export async function saveCustomModel(model, file) {
     return persisted
 }
 
-/**
- * Delete a persisted custom model (and its blob, if any).
- */
 export async function deleteCustomModel(id) {
     const meta = readMeta()
-    const filtered = meta.filter((m) => m.id !== id)
-    writeMeta(filtered)
-    try { await idbDelete(id) } catch { /* ok if not present */ }
+    writeMeta(meta.filter((m) => m.id !== id))
+    try { await idbDelete(id) } catch { /* ok */ }
+    deleteThumbnail(id)
+}
+
+export function readThumbnails() {
+    try {
+        const raw = localStorage.getItem(THUMB_KEY)
+        return raw ? JSON.parse(raw) : {}
+    } catch { return {} }
+}
+
+export function saveThumbnail(id, dataUrl) {
+    try {
+        const map = readThumbnails()
+        // Cap individual thumbnails to ~120 KB to avoid bloating localStorage
+        if (typeof dataUrl !== 'string' || dataUrl.length > 200_000) return
+        map[id] = dataUrl
+        localStorage.setItem(THUMB_KEY, JSON.stringify(map))
+    } catch { /* localStorage full — silently skip */ }
+}
+
+export function deleteThumbnail(id) {
+    try {
+        const map = readThumbnails()
+        if (id in map) {
+            delete map[id]
+            localStorage.setItem(THUMB_KEY, JSON.stringify(map))
+        }
+    } catch { /* ignore */ }
 }

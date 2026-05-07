@@ -545,3 +545,119 @@ button { font-family: inherit; cursor: pointer; }
     .model-title { font-size: 1.6rem; }
     .info-panel .model-description { display: none; }
 }
+
+/* ============== LIGHTING SLIDER ============== */
+.lighting-slider {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    background: var(--panel);
+    color: rgba(255,255,255,0.7);
+    pointer-events: auto;
+}
+.lighting-slider input[type='range'] {
+    width: 80px;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+
+/* ============== INFO PANEL EXTRAS ============== */
+.meta-row {
+    font-size: 0.75rem;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.55);
+    margin: 0.4rem 0 0.6rem;
+    text-transform: uppercase;
+}
+.meta-row .dot { margin: 0 0.4rem; opacity: 0.4; }
+.meta-location {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: var(--gold-dim);
+    margin-top: 0.6rem;
+    text-transform: uppercase;
+}
+.info-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+/* ============== WALK MODE TOGGLE ============== */
+.walk-toggle {
+    position: absolute;
+    top: 6.5rem;
+    right: 2rem;
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    pointer-events: auto;
+}
+.walk-help {
+    background: rgba(10,10,12,0.75);
+    border: 1px solid var(--panel-border);
+    padding: 0.4rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.7);
+    max-width: 280px;
+    text-align: right;
+}
+
+/* ============== MINIMAP ============== */
+.minimap {
+    position: absolute;
+    top: 6rem;
+    left: 1.5rem;
+    z-index: 90;
+    background: rgba(10,10,12,0.4);
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+}
+.minimap-legend {
+    text-align: center;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin-top: 0.3rem;
+}
+
+/* ============== DROP OVERLAY ============== */
+.drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.55);
+    border: 4px dashed var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.drop-hint {
+    background: rgba(10,10,12,0.95);
+    border: 1px solid var(--gold);
+    padding: 1.5rem 2.5rem;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    color: var(--gold);
+    letter-spacing: 2px;
+}
+
+/* ============== THUMBNAIL IMG ============== */
+.thumb-img {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border-radius: 4px;
+}
