@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useProgress } from '@react-three/drei'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Search } from 'lucide-react'
 
 import { modelsData as builtInModels } from './data/models'
 import Navbar from './components/ui/Navbar'
@@ -11,16 +11,22 @@ import ThumbnailStrip from './components/ui/ThumbnailStrip'
 import FullscreenBtn from './components/ui/FullscreenBtn'
 import AudioBtn from './components/ui/AudioBtn'
 import AddModelDialog from './components/ui/AddModelDialog'
+import HelpOverlay from './components/ui/HelpOverlay'
+import ShareDialog from './components/ui/ShareDialog'
+import SearchFilterBar from './components/ui/SearchFilterBar'
+import PerfHUD from './components/ui/PerfHUD'
 import { useAmbientAudio } from './hooks/useAmbientAudio'
 import {
     loadCustomModels, saveCustomModel, deleteCustomModel, saveThumbnail,
 } from './lib/modelStorage'
+import { readFavorites, toggleFavorite } from './lib/favorites'
 
 const ViewerScene = lazy(() => import('./scenes/ViewerScene'))
 const WalkableScene = lazy(() => import('./scenes/WalkableScene'))
 const GridScene = lazy(() => import('./scenes/GridScene'))
 
 const SETTINGS_KEY = 'museum.settings.v1'
+const TOUR_INTERVAL_MS = 9000
 
 function FullScreenLoader() {
     const { progress } = useProgress()
@@ -38,10 +44,7 @@ function FullScreenLoader() {
 }
 
 function loadSettings() {
-    try {
-        const raw = localStorage.getItem(SETTINGS_KEY)
-        return raw ? JSON.parse(raw) : {}
-    } catch { return {} }
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') } catch { return {} }
 }
 
 const VALID_MODES = ['viewer', 'walkable', 'grid']
@@ -84,11 +87,21 @@ export default function App() {
         return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
     })
     const [thumbVersion, setThumbVersion] = useState(0)
-    // When false, only the description is hidden — title + artist stay visible
     const [descVisible, setDescVisible] = useState(true)
     const [isFullscreen, setIsFullscreen] = useState(false)
 
-    // Track fullscreen so we can hide all UI chrome when active
+    // Suggestions UI
+    const [favorites, setFavorites] = useState(() => readFavorites())
+    const [searchOpen, setSearchOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [section, setSection] = useState('all')
+    const [favoritesOnly, setFavoritesOnly] = useState(false)
+    const [helpOpen, setHelpOpen] = useState(false)
+    const [shareOpen, setShareOpen] = useState(false)
+    const [tourActive, setTourActive] = useState(false)
+    const [perfOn, setPerfOn] = useState(false)
+    const importInputRef = useRef(null)
+
     useEffect(() => {
         const onChange = () => setIsFullscreen(!!document.fullscreenElement)
         document.addEventListener('fullscreenchange', onChange)
@@ -101,7 +114,18 @@ export default function App() {
     const models = useMemo(() => [...builtInModels, ...customModels], [customModels])
     const currentModel = models[currentIndex] || models[0]
 
-    // Hydrate persisted custom models
+    // Filtered list for thumbnail strip + nav
+    const visibleModels = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase()
+        return models.filter((m) => {
+            if (section !== 'all' && m.category !== section) return false
+            if (favoritesOnly && !favorites.has(m.id)) return false
+            if (!q) return true
+            const hay = `${m.title} ${m.artist} ${m.description || ''} ${m.year || ''}`.toLowerCase()
+            return hay.includes(q)
+        })
+    }, [models, searchQuery, section, favoritesOnly, favorites])
+
     useEffect(() => {
         let cancelled = false
         loadCustomModels().then((loaded) => {
@@ -110,16 +134,12 @@ export default function App() {
         return () => { cancelled = true }
     }, [])
 
-    // Persist UI prefs
     useEffect(() => {
         try {
-            localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-                mode, light: lightingValue,
-            }))
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify({ mode, light: lightingValue }))
         } catch {}
     }, [mode, lightingValue])
 
-    // Sync URL hash so the current view is shareable
     useEffect(() => {
         const params = new URLSearchParams()
         params.set('m', mode)
@@ -142,22 +162,63 @@ export default function App() {
         return () => clearTimeout(t)
     }, [])
 
+    // Navigation respects current filter
+    const next = useCallback(() => {
+        const list = visibleModels.length ? visibleModels : models
+        setCurrentIndex((ci) => {
+            const cur = models[ci]
+            const inListIdx = list.findIndex((m) => m.id === cur?.id)
+            const nextInList = list[(inListIdx + 1 + list.length) % list.length]
+            return models.findIndex((m) => m.id === nextInList.id)
+        })
+    }, [models, visibleModels])
+
+    const prev = useCallback(() => {
+        const list = visibleModels.length ? visibleModels : models
+        setCurrentIndex((ci) => {
+            const cur = models[ci]
+            const inListIdx = list.findIndex((m) => m.id === cur?.id)
+            const prevInList = list[(inListIdx - 1 + list.length) % list.length]
+            return models.findIndex((m) => m.id === prevInList.id)
+        })
+    }, [models, visibleModels])
+
+    const selectById = useCallback((id) => {
+        const idx = models.findIndex((m) => m.id === id)
+        if (idx >= 0) setCurrentIndex(idx)
+    }, [models])
+
+    // Keyboard
     useEffect(() => {
         const onKey = (e) => {
             if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'TEXTAREA') return
-            if (e.key === 'ArrowRight') setCurrentIndex((i) => (i + 1) % models.length)
-            else if (e.key === 'ArrowLeft') setCurrentIndex((i) => (i - 1 + models.length) % models.length)
+            if (e.key === 'ArrowRight') next()
+            else if (e.key === 'ArrowLeft') prev()
             else if (e.key === '1') setMode('viewer')
             else if (e.key === '2') setMode('walkable')
             else if (e.key === '3') setMode('grid')
             else if (e.key === 'i' || e.key === 'I') setDescVisible((v) => !v)
+            else if (e.key === '?') setHelpOpen(true)
+            else if (e.key === '/') { e.preventDefault(); setSearchOpen(true) }
+            else if (e.key === 't' || e.key === 'T') setTourActive((v) => !v)
+            else if (e.key === 'f' || e.key === 'F') {
+                if (document.fullscreenElement) document.exitFullscreen?.()
+                else document.documentElement.requestFullscreen?.()
+            }
+            else if (e.key === 'Escape') {
+                setHelpOpen(false); setShareOpen(false); setSearchOpen(false)
+            }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
-    }, [models.length])
+    }, [next, prev])
 
-    const next = () => setCurrentIndex((i) => (i + 1) % models.length)
-    const prev = () => setCurrentIndex((i) => (i - 1 + models.length) % models.length)
+    // Guided tour
+    useEffect(() => {
+        if (!tourActive) return
+        const id = setInterval(() => next(), TOUR_INTERVAL_MS)
+        return () => clearInterval(id)
+    }, [tourActive, next])
 
     const handleAdd = useCallback(async ({ model, file }) => {
         const tagged = { ...model, _custom: true }
@@ -190,24 +251,74 @@ export default function App() {
         setThumbVersion((v) => v + 1)
     }, [])
 
-    // Drag-and-drop a .glb anywhere on the page → open dialog with file prefilled
+    const handleToggleFavorite = useCallback((id) => {
+        setFavorites((prev) => toggleFavorite(prev, id))
+    }, [])
+
+    // Export / Import gallery JSON
+    const handleExport = useCallback(() => {
+        const safe = customModels.map((m) => {
+            const { remoteUrl, ...rest } = m
+            // Only export shareable models (URL-based or image-based, not local file blobs)
+            if (m.imageUrl) return { ...rest, imageUrl: m.imageUrl }
+            if (remoteUrl && !remoteUrl.startsWith('blob:')) return { ...rest, remoteUrl }
+            return null
+        }).filter(Boolean)
+        const data = {
+            exported: new Date().toISOString(),
+            favorites: [...favorites],
+            customModels: safe,
+        }
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `museum-gallery-${Date.now()}.json`
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+    }, [customModels, favorites])
+
+    const handleImport = useCallback(() => {
+        importInputRef.current?.click()
+    }, [])
+
+    const onImportFile = useCallback(async (e) => {
+        const f = e.target.files?.[0]
+        if (!f) return
+        try {
+            const text = await f.text()
+            const data = JSON.parse(text)
+            const incoming = Array.isArray(data.customModels) ? data.customModels : []
+            for (const m of incoming) {
+                const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+                const model = { ...m, id, _custom: true }
+                setCustomModels((prev) => [...prev, model])
+                try { await saveCustomModel(model, null) } catch {}
+            }
+            if (Array.isArray(data.favorites)) {
+                const merged = new Set([...favorites, ...data.favorites])
+                setFavorites(merged)
+                try { localStorage.setItem('museum.favorites.v1', JSON.stringify([...merged])) } catch {}
+            }
+        } catch (err) {
+            alert('Could not read that gallery file.')
+        } finally {
+            if (importInputRef.current) importInputRef.current.value = ''
+        }
+    }, [favorites])
+
+    // Drag-and-drop .glb / image anywhere on the page
     useEffect(() => {
         const onDragOver = (e) => {
             if (e.dataTransfer?.types?.includes('Files')) {
-                e.preventDefault()
-                setDragOver(true)
+                e.preventDefault(); setDragOver(true)
             }
         }
-        const onDragLeave = (e) => {
-            if (e.relatedTarget === null) setDragOver(false)
-        }
+        const onDragLeave = (e) => { if (e.relatedTarget === null) setDragOver(false) }
         const onDrop = (e) => {
-            e.preventDefault()
-            setDragOver(false)
+            e.preventDefault(); setDragOver(false)
             const f = e.dataTransfer?.files?.[0]
-            if (f && /\.glb$/i.test(f.name)) {
-                setDroppedFile(f)
-                setDialogOpen(true)
+            if (f && (/\.glb$/i.test(f.name) || /\.(png|jpe?g|webp|avif)$/i.test(f.name))) {
+                setDroppedFile(f); setDialogOpen(true)
             }
         }
         window.addEventListener('dragover', onDragOver)
@@ -219,6 +330,8 @@ export default function App() {
             window.removeEventListener('drop', onDrop)
         }
     }, [])
+
+    const shareUrl = window.location.origin + window.location.pathname + window.location.search + window.location.hash
 
     return (
         <div className={`app-root ${dragOver ? 'drag-over' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}>
@@ -232,6 +345,14 @@ export default function App() {
                 onAddModel={() => setDialogOpen(true)}
                 lightingValue={lightingValue}
                 onLightingChange={setLightingValue}
+                tourActive={tourActive}
+                onToggleTour={() => setTourActive((v) => !v)}
+                onHelp={() => setHelpOpen(true)}
+                onShare={() => setShareOpen(true)}
+                onExport={handleExport}
+                onImport={handleImport}
+                perfOn={perfOn}
+                onTogglePerf={() => setPerfOn((v) => !v)}
             />
 
             <div className="canvas-container">
@@ -269,16 +390,49 @@ export default function App() {
                     compact={mode !== 'viewer'}
                     showDescription={descVisible}
                     onDelete={handleDelete}
+                    isFavorite={favorites.has(currentModel.id)}
+                    onToggleFavorite={handleToggleFavorite}
                 />
             </AnimatePresence>
 
+            {tourActive && (
+                <div className="tour-banner">
+                    <span className="tour-dot" />
+                    Guided tour — auto-advancing every {Math.round(TOUR_INTERVAL_MS / 1000)}s · press T to stop
+                </div>
+            )}
+
+            {perfOn && <PerfHUD />}
+
+            <SearchFilterBar
+                open={searchOpen}
+                onClose={() => setSearchOpen(false)}
+                query={searchQuery}
+                onQuery={setSearchQuery}
+                section={section}
+                onSection={setSection}
+                favoritesOnly={favoritesOnly}
+                onToggleFavorites={() => setFavoritesOnly((v) => !v)}
+                resultCount={visibleModels.length}
+                totalCount={models.length}
+            />
+
             <div className="bottom-bar">
+                <button
+                    className={`icon-btn search-toggle ${searchOpen ? 'active' : ''}`}
+                    onClick={() => setSearchOpen((v) => !v)}
+                    aria-label="Search & filter"
+                    title="Search & filter (/)"
+                >
+                    <Search size={14} />
+                </button>
                 <Controls index={currentIndex} total={models.length} onPrev={prev} onNext={next} />
                 <ThumbnailStrip
-                    models={models}
-                    currentIndex={currentIndex}
-                    onSelect={setCurrentIndex}
+                    models={visibleModels}
+                    currentId={currentModel?.id}
+                    onSelect={selectById}
                     thumbVersion={thumbVersion}
+                    favorites={favorites}
                 />
                 <div className="utility-cluster">
                     <button
@@ -295,14 +449,14 @@ export default function App() {
             </div>
 
             <div className="hint">
-                {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch'}
-                {mode === 'walkable' && 'Drag to look · ← → to walk between exhibits'}
-                {mode === 'grid' && 'Click any exhibit · Drag to orbit · ← →'}
+                {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → switch · ? for help'}
+                {mode === 'walkable' && 'Drag to look · ← → walk between exhibits · ? for help'}
+                {mode === 'grid' && 'Click any exhibit · Drag to orbit · ? for help'}
             </div>
 
             {dragOver && (
                 <div className="drop-overlay">
-                    <div className="drop-hint">Drop a <strong>.glb</strong> file to add it as an exhibit</div>
+                    <div className="drop-hint">Drop a <strong>.glb</strong> or <strong>image</strong> to add it</div>
                 </div>
             )}
 
@@ -311,6 +465,16 @@ export default function App() {
                 onClose={() => { setDialogOpen(false); setDroppedFile(null) }}
                 onAdd={handleAdd}
                 prefillFile={droppedFile}
+            />
+            <HelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+            <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} url={shareUrl} />
+
+            <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json"
+                style={{ display: 'none' }}
+                onChange={onImportFile}
             />
         </div>
     )

@@ -74,6 +74,8 @@ export async function loadCustomModels() {
                 const url = URL.createObjectURL(blob)
                 out.push({ ...m, remoteUrl: url, _custom: true })
             } catch { /* skip */ }
+        } else if (m.imageUrl) {
+            out.push({ ...m, _custom: true })
         } else if (m.remoteUrl) {
             out.push({ ...m, _custom: true })
         }
@@ -98,10 +100,13 @@ export async function saveCustomModel(model, file) {
         sourceUrl: model.sourceUrl,
         scale: model.scale,
         pedestalHeight: model.pedestalHeight,
+        paintingFlip: model.paintingFlip,
     }
     if (file) {
         persisted._blobKey = model.id
         await idbPut(model.id, file)
+    } else if (model.imageUrl) {
+        persisted.imageUrl = model.imageUrl
     } else {
         persisted.remoteUrl = model.remoteUrl
     }

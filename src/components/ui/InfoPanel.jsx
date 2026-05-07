@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Trash2, Volume2, Square } from 'lucide-react'
+import { Trash2, Volume2, Square, Heart } from 'lucide-react'
 
 function speak(text, onEnd) {
     if (!('speechSynthesis' in window)) return null
     window.speechSynthesis.cancel()
     const utt = new SpeechSynthesisUtterance(text)
-    utt.rate = 0.95
-    utt.pitch = 1.0
-    utt.volume = 1.0
-    utt.onend = onEnd
-    utt.onerror = onEnd
+    utt.rate = 0.95; utt.pitch = 1.0; utt.volume = 1.0
+    utt.onend = onEnd; utt.onerror = onEnd
     window.speechSynthesis.speak(utt)
     return utt
 }
 
-export default function InfoPanel({ model, compact = false, onDelete, showDescription = true }) {
+export default function InfoPanel({
+    model, compact = false, onDelete, showDescription = true,
+    isFavorite = false, onToggleFavorite,
+}) {
     const [speaking, setSpeaking] = useState(false)
     const canDelete = !!model?._custom && typeof onDelete === 'function'
 
-    // Stop narration when model changes
     useEffect(() => {
         if ('speechSynthesis' in window) window.speechSynthesis.cancel()
         setSpeaking(false)
@@ -53,7 +52,19 @@ export default function InfoPanel({ model, compact = false, onDelete, showDescri
             transition={{ duration: 0.45, ease: 'easeOut' }}
             className={`info-panel ${compact ? 'compact' : ''}`}
         >
-            <div className="artist-badge">{model.artist}</div>
+            <div className="artist-badge-row">
+                <div className="artist-badge">{model.artist}</div>
+                {onToggleFavorite && (
+                    <button
+                        className={`fav-btn ${isFavorite ? 'on' : ''}`}
+                        onClick={() => onToggleFavorite(model.id)}
+                        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                        title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                        <Heart size={14} fill={isFavorite ? 'currentColor' : 'none'} />
+                    </button>
+                )}
+            </div>
             <h1 className="model-title">{model.title}</h1>
             <div className="year-tag">{model.year}</div>
 
@@ -81,14 +92,10 @@ export default function InfoPanel({ model, compact = false, onDelete, showDescri
                     {speaking ? 'STOP NARRATION' : 'AUDIO GUIDE'}
                 </button>
                 {canDelete && (
-                    <button
-                        className="details-btn delete-btn"
+                    <button className="details-btn delete-btn"
                         onClick={() => {
-                            if (window.confirm(`Remove "${model.title}" from your gallery?`)) {
-                                onDelete(model.id)
-                            }
-                        }}
-                    >
+                            if (window.confirm(`Remove "${model.title}" from your gallery?`)) onDelete(model.id)
+                        }}>
                         <Trash2 size={12} /> REMOVE
                     </button>
                 )}

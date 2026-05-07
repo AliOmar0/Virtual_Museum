@@ -751,3 +751,269 @@ button { font-family: inherit; cursor: pointer; }
 }
 @keyframes museum-spin { to { transform: rotate(360deg); } }
 .spin { animation: museum-spin 0.9s linear infinite; }
+
+/* ============== INFO PANEL: favorite ============== */
+.artist-badge-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.4rem;
+}
+.fav-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.5);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.fav-btn:hover { color: #ff7a8a; border-color: rgba(255,122,138,0.4); transform: scale(1.05); }
+.fav-btn.on { color: #ff5a72; border-color: rgba(255,90,114,0.5); }
+
+/* ============== NAVBAR: more menu + icon-only button ============== */
+.mode-btn.icon-only { padding: 0.5rem 0.6rem; }
+.mode-btn.tour-on { color: var(--gold); border-color: rgba(212,180,131,0.4); }
+.more-wrap { position: relative; display: inline-flex; }
+.more-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 220px;
+    background: rgba(15,12,10,0.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.35rem;
+    z-index: 60;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.more-menu button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.85);
+    padding: 0.5rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+}
+.more-menu button:hover { background: rgba(255,255,255,0.06); }
+.more-menu-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.3rem 0.4rem; }
+
+/* ============== SEARCH BAR ============== */
+.search-bar {
+    position: fixed;
+    bottom: 90px;
+    left: 1rem;
+    right: 1rem;
+    max-width: 720px;
+    margin: 0 auto;
+    background: rgba(15,12,10,0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.6rem;
+    z-index: 30;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.search-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255,255,255,0.6);
+}
+.search-input-row input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 0.4rem 0.3rem;
+    font-size: 0.85rem;
+    outline: none;
+}
+.search-count {
+    font-size: 0.7rem;
+    opacity: 0.55;
+    letter-spacing: 1px;
+    padding: 0 0.3rem;
+}
+.filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+}
+.pill {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+.pill:hover { color: #fff; border-color: rgba(255,255,255,0.2); }
+.pill.active {
+    background: rgba(212,180,131,0.15);
+    border-color: var(--gold, #d4b483);
+    color: var(--gold, #d4b483);
+}
+.pill.heart-pill.active { background: rgba(255,90,114,0.15); border-color: #ff5a72; color: #ff5a72; }
+
+.search-toggle { margin-right: 0.4rem; }
+.thumbnail-strip.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.4);
+    font-size: 0.75rem;
+    padding: 0 1rem;
+    font-style: italic;
+}
+.thumb { position: relative; }
+.thumb-fav {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    color: #ff5a72;
+}
+
+/* ============== TOUR BANNER ============== */
+.tour-banner {
+    position: fixed;
+    top: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(212,180,131,0.12);
+    border: 1px solid rgba(212,180,131,0.4);
+    color: var(--gold, #d4b483);
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    z-index: 25;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    backdrop-filter: blur(8px);
+}
+.tour-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold, #d4b483);
+    animation: tour-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ============== PERF HUD ============== */
+.perf-hud {
+    position: fixed;
+    top: 88px;
+    right: 1rem;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.8);
+    z-index: 25;
+    min-width: 90px;
+}
+.perf-row { display: flex; justify-content: space-between; gap: 0.6rem; }
+.perf-label { opacity: 0.5; }
+.perf-val { font-weight: 600; }
+
+/* ============== HELP OVERLAY ============== */
+.help-dialog .shortcut-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+.help-dialog .shortcut-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.shortcut-keys {
+    display: inline-flex;
+    gap: 0.25rem;
+    min-width: 90px;
+}
+.shortcut-keys kbd {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0.15rem 0.45rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: #fff;
+    min-width: 22px;
+    text-align: center;
+}
+.shortcut-label {
+    color: rgba(255,255,255,0.75);
+    font-size: 0.82rem;
+}
+
+/* ============== SHARE DIALOG ============== */
+.share-qr-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.6rem;
+}
+.share-qr {
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+}
+.share-url-block {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.share-url-block input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    width: 100%;
+}
+.share-url-block .btn-primary {
+    align-self: flex-start;
+}
+
+@media (max-width: 700px) {
+    .search-bar { bottom: 110px; }
+    .tour-banner { font-size: 0.6rem; padding: 0.35rem 0.7rem; }
+    .perf-hud { top: auto; bottom: 110px; right: 0.6rem; }
+    .share-qr-row { flex-direction: column; }
+}

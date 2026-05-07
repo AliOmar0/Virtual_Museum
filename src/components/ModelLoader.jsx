@@ -90,7 +90,7 @@ class GLBErrorBoundary extends Component {
  *
  * This is much more reliable than drei's <Center> for async-loaded GLTFs.
  */
-function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, extraScale = 1, onReady }) {
+function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, extraScale = 1, paintingFlip = false, onReady }) {
     const outer = useRef()
     const inner = useRef()
     const [ready, setReady] = useState(false)
@@ -137,6 +137,12 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
                     // depth is Y → rotate to bring Y-normal onto Z
                     i.rotation.set(Math.PI / 2, 0, 0)
                 }
+                // Some painting GLBs are authored facing -Z (canvas back to
+                // the room). paintingFlip adds an extra 180° yaw so the
+                // textured face ends up toward the viewer.
+                if (paintingFlip) {
+                    i.rotation.y += Math.PI
+                }
                 i.updateMatrixWorld(true)
                 box = new THREE.Box3().setFromObject(i)
                 size = new THREE.Vector3(); box.getSize(size)
@@ -176,7 +182,7 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
         }
         tryFit()
         return () => { cancelled = true; if (raf) cancelAnimationFrame(raf) }
-    }, [type, alignBottom, targetSize, extraScale])
+    }, [type, alignBottom, targetSize, extraScale, paintingFlip])
 
     return (
         <group ref={outer} visible={ready}>
@@ -190,8 +196,42 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
  * auto-normalized to a consistent display size with proper bottom alignment
  * for statues.
  */
+function ImagePlane({ url }) {
+    const tex = useMemo(() => {
+        const loader = new THREE.TextureLoader()
+        loader.setCrossOrigin('anonymous')
+        const t = loader.load(url)
+        t.colorSpace = THREE.SRGBColorSpace
+        t.anisotropy = 8
+        return t
+    }, [url])
+    const [aspect, setAspect] = useState(1)
+    useEffect(() => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => setAspect(img.naturalWidth / img.naturalHeight)
+        img.src = url
+    }, [url])
+    // Build a flat slab: face + thin frame backer for a paintinglike depth
+    return (
+        <group>
+            {/* Frame backer */}
+            <mesh position={[0, 0, -0.025]} castShadow receiveShadow>
+                <boxGeometry args={[aspect * 1.06, 1.06, 0.05]} />
+                <meshStandardMaterial color="#1a140d" roughness={0.7} metalness={0.2} />
+            </mesh>
+            {/* Image plane (front face) */}
+            <mesh castShadow>
+                <planeGeometry args={[aspect, 1]} />
+                <meshStandardMaterial map={tex} roughness={0.9} metalness={0} side={THREE.DoubleSide} />
+            </mesh>
+        </group>
+    )
+}
+
 export function ModelDisplay({ modelData, alignBottom = false, targetSize, extraScale = 1 }) {
-    const ModelComp = !modelData.remoteUrl ? builtInModels[modelData.file] : null
+    const ModelComp = !modelData.remoteUrl && !modelData.imageUrl
+        ? builtInModels[modelData.file] : null
 
     return (
         <GLBErrorBoundary>
@@ -201,8 +241,11 @@ export function ModelDisplay({ modelData, alignBottom = false, targetSize, extra
                     alignBottom={alignBottom}
                     targetSize={targetSize ?? modelData.targetSize}
                     extraScale={extraScale * (modelData.fineScale || modelData.scale || 1)}
+                    paintingFlip={!!modelData.paintingFlip}
                 >
-                    {modelData.remoteUrl ? (
+                    {modelData.imageUrl ? (
+                        <ImagePlane url={modelData.imageUrl} />
+                    ) : modelData.remoteUrl ? (
                         <RemoteGLB url={modelData.remoteUrl} />
                     ) : ModelComp ? (
                         <ModelComp />
