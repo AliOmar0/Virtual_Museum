@@ -13,7 +13,7 @@ export const modelsData = [
         type: "painting",
         category: "paintings",
         description:
-            "Painted from memory in June 1889 from his asylum room at Saint-Rémy-de-Provence, the swirling night sky is one of the most recognised images in Western art. The cypress in the foreground links earth and sky with a single dark, flame-like form; the village beneath is invented. Van Gogh wrote to his brother Theo that the work was a 'study of night.'",
+            "Painted from memory in June 1889 from his asylum room at Saint-Rémy-de-Provence, the swirling night sky is one of the most recognised images in Western art. The cypress in the foreground links earth and sky with a single dark, flame-like form; the village beneath is invented (no church spire was visible from his window). Van Gogh wrote to his brother Theo that the work was a 'study of night.' MoMA acquired the painting in 1941; it has rarely left the building since.",
         medium: "Oil on canvas",
         dimensions: "73.7 × 92.1 cm",
         location: "Museum of Modern Art, New York",
@@ -29,7 +29,7 @@ export const modelsData = [
         type: "statue",
         category: "classical",
         description:
-            "A neoclassical funerary angel modelled on the cemetery sculpture tradition of late-19th-century Europe. The piece's tightly carved feathers and softly draped garments demonstrate the period's mastery of contrasting marble textures — polished skin against heavily worked stone.",
+            "A neoclassical funerary angel modelled on the cemetery sculpture tradition of late-19th-century Europe — the kind of monument one finds in the great Italian camposantos at Genoa and Milan. The piece's tightly carved feathers and softly draped garments demonstrate the period's mastery of contrasting marble textures: polished skin against heavily worked stone, with the wings stretched out behind to frame the figure rather than to suggest flight.",
         medium: "Marble",
         dimensions: "≈1.6 m",
         location: "Private study",
@@ -46,7 +46,7 @@ export const modelsData = [
         type: "painting",
         category: "paintings",
         description:
-            "Watts called this an 'allegory of consolation,' painted soon after the death of a friend's child. A winged figure of Death — neither ghoul nor saviour — gently lays a wreath on a sleeping infant. Watts considered such symbolic works his most important contribution, more than the portraits that made him famous.",
+            "Watts called this an 'allegory of consolation,' painted soon after the death of a friend's child. A winged figure of Death — neither ghoul nor saviour — gently lays a wreath on a sleeping infant. The crown is an emblem of innocence preserved: childhood reaches its perfection precisely because it does not survive. Watts considered such symbolic works his most important contribution to art, more than the portraits that made him famous in his lifetime.",
         medium: "Oil on canvas",
         dimensions: "157 × 67 cm",
         location: "Watts Gallery, Compton",
@@ -62,7 +62,7 @@ export const modelsData = [
         type: "statue",
         category: "classical",
         description:
-            "Excavated in a Roman vineyard in 1506 and immediately acquired by Pope Julius II, this Hellenistic group depicts the Trojan priest Laocoön and his sons strangled by sea serpents — punishment from the gods for warning Troy about the wooden horse. Its anguished poses redirected Renaissance sculpture (Michelangelo arrived hours after its discovery).",
+            "Excavated in a Roman vineyard in January 1506 and immediately acquired by Pope Julius II, this Hellenistic group depicts the Trojan priest Laocoön and his two sons strangled by sea serpents — punishment from the gods for warning Troy about the wooden horse. Its anguished, twisting poses redirected the course of Renaissance sculpture (Michelangelo, summoned by the Pope, reportedly arrived at the excavation within hours of its discovery and called it 'a singular miracle of art'). Pliny the Elder mentions the original by name in his Natural History.",
         medium: "Marble",
         dimensions: "208 × 163 × 112 cm",
         location: "Vatican Museums, Rome",
@@ -79,7 +79,7 @@ export const modelsData = [
         type: "statue",
         category: "classical",
         description:
-            "A Baroque portrait bust of the Sun King at the height of his power, identifiable by the cascading wig (a fashion he popularised) and the cuirass of a victorious general. The bust style — derived from Bernini's portrait of the king — became the official template for royal imagery across Europe.",
+            "A Baroque portrait bust of the Sun King at the height of his power, identifiable by the cascading allonge wig (a fashion he popularised across Europe) and the cuirass of a victorious general draped in a billowing lace cravat. The bust type — derived from Bernini's celebrated 1665 portrait of the king — became the official template for royal imagery and was copied in marble, bronze and porcelain for embassies, palaces and provincial administrations across the kingdom.",
         medium: "Marble",
         dimensions: "≈1.0 m bust",
         location: "Musée du Louvre, Paris",
@@ -96,7 +96,7 @@ export const modelsData = [
         type: "statue",
         category: "modern",
         description:
-            "Originally conceived as 'The Poet,' a small figure sitting above the Gates of Hell representing Dante surveying the damned. Rodin later enlarged him to monumental scale; the figure became less Dante and more an emblem of all human introspection — every muscle of the body engaged in the act of thought.",
+            "Originally conceived as 'The Poet,' a small figure sitting above the Gates of Hell representing Dante surveying the damned. Rodin later enlarged him to monumental scale; the figure became less specifically Dante and more an emblem of all human introspection — every muscle of the body, from the curled toes to the clenched jaw, engaged in the act of thought. More than twenty authentic bronze casts exist worldwide; the most famous sit at the Musée Rodin in Paris and outside Rodin's tomb at Meudon.",
         medium: "Bronze",
         dimensions: "186 × 98 × 142 cm (large version)",
         location: "Musée Rodin, Paris (and many casts)",

@@ -57,7 +57,7 @@ export default function InfoPanel({ model, compact = false, onDelete, showDescri
             <h1 className="model-title">{model.title}</h1>
             <div className="year-tag">{model.year}</div>
 
-            {!compact && showDescription && (
+            {showDescription && (
                 <>
                     {(model.medium || model.dimensions) && (
                         <div className="meta-row">
@@ -66,7 +66,9 @@ export default function InfoPanel({ model, compact = false, onDelete, showDescri
                             {model.dimensions && <span>{model.dimensions}</span>}
                         </div>
                     )}
-                    <p className="model-description">{model.description}</p>
+                    {model.description && (
+                        <p className="model-description">{model.description}</p>
+                    )}
                     {model.location && (
                         <div className="meta-location">On view at {model.location}</div>
                     )}

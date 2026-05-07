@@ -137,6 +137,19 @@ button { font-family: inherit; cursor: pointer; }
     letter-spacing: -1px;
 }
 .info-panel.compact .model-title { font-size: 2.4rem; }
+.info-panel.compact .model-description {
+    font-size: 0.78rem;
+    line-height: 1.55;
+    opacity: 0.6;
+    max-height: 18vh;
+    overflow-y: auto;
+    margin-bottom: 0.7rem;
+}
+.info-panel.compact .meta-row,
+.info-panel.compact .meta-location {
+    font-size: 0.7rem;
+    opacity: 0.55;
+}
 
 .year-tag {
     font-size: 1rem;
@@ -543,7 +556,8 @@ button { font-family: inherit; cursor: pointer; }
 
 @media (max-width: 500px) {
     .model-title { font-size: 1.6rem; }
-    .info-panel .model-description { display: none; }
+    /* Mobile — keep description visible but smaller */
+    .info-panel .model-description { font-size: 0.72rem; max-height: 16vh; }
 }
 
 /* ============== LIGHTING SLIDER ============== */
@@ -713,3 +727,27 @@ button { font-family: inherit; cursor: pointer; }
 
 /* Info-toggle icon button active highlight */
 .icon-btn.active { color: var(--gold); }
+
+/* ============== ADD-MODEL DIALOG: textarea + spinner ============== */
+.dialog-form textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    font: inherit;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 60px;
+}
+.dialog-form textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+.dialog-form .file-row input[type="url"] {
+    flex: 1;
+}
+@keyframes museum-spin { to { transform: rotate(360deg); } }
+.spin { animation: museum-spin 0.9s linear infinite; }

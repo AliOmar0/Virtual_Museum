@@ -37,18 +37,24 @@ function RemoteGLB({ url }) {
     return <primitive object={cloned} />
 }
 
-function enhanceMaterials(root) {
+function enhanceMaterials(root, type = 'statue') {
     root.traverse((obj) => {
         if (obj.isMesh) {
             obj.castShadow = true
             obj.receiveShadow = true
             const mats = Array.isArray(obj.material) ? obj.material : [obj.material]
             mats.forEach((m) => {
-                if (!m || enhancedMaterials.has(m)) return
+                if (!m) return
                 if (m.map) {
                     m.map.anisotropy = 8
                     m.map.colorSpace = THREE.SRGBColorSpace
                 }
+                // Paintings are flat — render both sides so the artwork is
+                // visible regardless of which way the GLB was authored.
+                if (type === 'painting') {
+                    m.side = THREE.DoubleSide
+                }
+                if (enhancedMaterials.has(m)) return
                 if ('envMapIntensity' in m) m.envMapIntensity = 1.1
                 if ('roughness' in m && m.roughness === 0) m.roughness = 0.4
                 m.needsUpdate = true
@@ -164,7 +170,7 @@ function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, e
                 -localCenter.z
             )
 
-            enhanceMaterials(i)
+            enhanceMaterials(i, type)
             setReady(true)
             if (onReady) onReady()
         }
