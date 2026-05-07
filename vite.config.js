@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// When deploying to GitHub Pages the site is served from
+// https://<user>.github.io/<repo>/, so all built asset URLs need the
+// `/<repo>/` prefix. Locally (dev + Replit preview) we keep `/`.
+const isGhPages = process.env.DEPLOY_TARGET === 'gh-pages'
+
 export default defineConfig({
+    base: isGhPages ? '/Virtual_Museum/' : '/',
     plugins: [react()],
     server: {
         host: '0.0.0.0',
@@ -15,9 +20,6 @@ export default defineConfig({
         allowedHosts: true,
     },
     build: {
-        // Split heavy 3D libs into their own cacheable chunks. Quality is
-        // unchanged — just reduces initial JS parse cost and lets the browser
-        // cache vendor chunks separately from app code.
         rollupOptions: {
             output: {
                 manualChunks: {
