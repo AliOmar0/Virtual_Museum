@@ -17,7 +17,7 @@ import {
 const PAINTING_TARGET = 2.6
 const lerp = (a, b, t) => a + (b - a) * t
 
-function CameraDriver({ targetPos, lookAt, controlsRef, onPose }) {
+function CameraDriver({ targetPos, lookAt, controlsRef }) {
     const { camera } = useThree()
     useFrame(() => {
         camera.position.x += (targetPos[0] - camera.position.x) * 0.06
@@ -30,13 +30,6 @@ function CameraDriver({ targetPos, lookAt, controlsRef, onPose }) {
             t.z += (lookAt[2] - t.z) * 0.06
             controlsRef.current.update()
         }
-        // Report camera pose for the minimap (yaw derived from look direction)
-        if (onPose) {
-            const dx = controlsRef.current ? controlsRef.current.target.x - camera.position.x : 0
-            const dz = controlsRef.current ? controlsRef.current.target.z - camera.position.z : -1
-            const yaw = Math.atan2(dx, -dz)
-            onPose(camera.position.x, camera.position.z, yaw)
-        }
     })
     return null
 }
@@ -45,7 +38,6 @@ export default function WalkableScene({
     models,
     currentIndex,
     lightingValue = 0,
-    onCameraMove,
 }) {
     const { placements, dividers, endZ } = useMemo(() => computeLayout(models), [models])
     const controlsRef = useRef()
@@ -225,7 +217,6 @@ export default function WalkableScene({
                 targetPos={cam.pos}
                 lookAt={cam.look}
                 controlsRef={controlsRef}
-                onPose={onCameraMove}
             />
             <OrbitControls
                 ref={controlsRef}

@@ -10,7 +10,6 @@ import ThumbnailStrip from './components/ui/ThumbnailStrip'
 import FullscreenBtn from './components/ui/FullscreenBtn'
 import AudioBtn from './components/ui/AudioBtn'
 import AddModelDialog from './components/ui/AddModelDialog'
-import Minimap from './components/ui/Minimap'
 import { useAmbientAudio } from './hooks/useAmbientAudio'
 import {
     loadCustomModels, saveCustomModel, deleteCustomModel, saveThumbnail,
@@ -19,11 +18,6 @@ import {
 const ViewerScene = lazy(() => import('./scenes/ViewerScene'))
 const WalkableScene = lazy(() => import('./scenes/WalkableScene'))
 const GridScene = lazy(() => import('./scenes/GridScene'))
-
-// Static import only the lightweight layout helper, so the minimap doesn't
-// pull the entire walkable scene into the main bundle. (WalkableScene is still
-// lazy-loaded for its render path.)
-import { computeWalkableLayout } from './scenes/walkableLayout'
 
 const SETTINGS_KEY = 'museum.settings.v1'
 
@@ -88,8 +82,6 @@ export default function App() {
         const v = fromHash.light !== undefined ? fromHash.light : persisted.light
         return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0
     })
-    const [minimapOn, setMinimapOn] = useState(persisted.minimap ?? true)
-    const [cameraPose, setCameraPose] = useState({ x: 0, z: 4, yaw: 0 })
     const [thumbVersion, setThumbVersion] = useState(0)
 
     const { progress } = useProgress()
@@ -111,10 +103,10 @@ export default function App() {
     useEffect(() => {
         try {
             localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-                mode, light: lightingValue, minimap: minimapOn,
+                mode, light: lightingValue,
             }))
         } catch {}
-    }, [mode, lightingValue, minimapOn])
+    }, [mode, lightingValue])
 
     // Sync URL hash so the current view is shareable
     useEffect(() => {
@@ -147,7 +139,6 @@ export default function App() {
             else if (e.key === '1') setMode('viewer')
             else if (e.key === '2') setMode('walkable')
             else if (e.key === '3') setMode('grid')
-            else if (e.key === 'm' || e.key === 'M') setMinimapOn((v) => !v)
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -217,16 +208,6 @@ export default function App() {
         }
     }, [])
 
-    // Minimap layout — recomputed when models change
-    const minimapLayout = useMemo(() => {
-        if (mode !== 'walkable') return null
-        return computeWalkableLayout(models)
-    }, [mode, models])
-
-    const handleCameraMove = useCallback((x, z, yaw) => {
-        setCameraPose({ x, z, yaw })
-    }, [])
-
     return (
         <div className={`app-root ${dragOver ? 'drag-over' : ''}`}>
             <AnimatePresence>
@@ -239,8 +220,6 @@ export default function App() {
                 onAddModel={() => setDialogOpen(true)}
                 lightingValue={lightingValue}
                 onLightingChange={setLightingValue}
-                minimapOn={minimapOn}
-                onToggleMinimap={() => setMinimapOn((v) => !v)}
             />
 
             <div className="canvas-container">
@@ -258,7 +237,6 @@ export default function App() {
                             models={models}
                             currentIndex={currentIndex}
                             lightingValue={lightingValue}
-                            onCameraMove={handleCameraMove}
                         />
                     )}
                     {mode === 'grid' && (
@@ -271,19 +249,6 @@ export default function App() {
                     )}
                 </Suspense>
             </div>
-
-            {/* Minimap (gallery only) */}
-            {mode === 'walkable' && minimapOn && minimapLayout && (
-                <Minimap
-                    roomWidth={minimapLayout.roomWidth}
-                    roomDepth={minimapLayout.roomDepth}
-                    placements={minimapLayout.placements}
-                    currentIndex={currentIndex}
-                    cameraX={cameraPose.x}
-                    cameraZ={cameraPose.z}
-                    cameraYaw={cameraPose.yaw}
-                />
-            )}
 
             <AnimatePresence mode="wait">
                 <InfoPanel
@@ -310,7 +275,7 @@ export default function App() {
 
             <div className="hint">
                 {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch'}
-                {mode === 'walkable' && 'Drag to look · ← → to walk between exhibits · M for map'}
+                {mode === 'walkable' && 'Drag to look · ← → to walk between exhibits'}
                 {mode === 'grid' && 'Click any exhibit · Drag to orbit · ← →'}
             </div>
 

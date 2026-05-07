@@ -664,11 +664,24 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ============== INFO PANEL: long-text safety ============== */
 .info-panel {
+    /* Anchor to the top so long descriptions can't slide behind the bottom bar */
+    top: 7.5rem !important;
+    bottom: auto !important;
+    transform: none !important;
     max-width: 360px;
+    max-height: calc(100vh - 14rem);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    pointer-events: auto;
 }
 .info-panel.compact {
+    top: 7.5rem !important;
     max-width: 320px;
+    max-height: calc(100vh - 14rem);
 }
+.info-panel::-webkit-scrollbar { width: 4px; }
+.info-panel::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
+
 .artist-badge {
     word-wrap: break-word;
     overflow-wrap: anywhere;
@@ -686,11 +699,6 @@ button { font-family: inherit; cursor: pointer; }
     overflow-wrap: break-word;
     hyphens: auto;
     line-height: 1.55;
-    max-height: 38vh;
-    overflow-y: auto;
-    padding-right: 0.4rem;
 }
-.model-description::-webkit-scrollbar { width: 4px; }
-.model-description::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
 .meta-row { word-wrap: break-word; overflow-wrap: break-word; }
 .meta-location { word-wrap: break-word; overflow-wrap: break-word; }

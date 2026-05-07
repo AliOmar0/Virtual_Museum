@@ -1,5 +1,5 @@
 import React from 'react'
-import { Eye, Footprints, LayoutGrid, PlusCircle, Map, Sun, Moon } from 'lucide-react'
+import { Eye, Footprints, LayoutGrid, PlusCircle, Sun, Moon } from 'lucide-react'
 
 const MODES = [
     { id: 'viewer', label: 'Viewer', Icon: Eye },
@@ -10,7 +10,6 @@ const MODES = [
 export default function Navbar({
     mode, onModeChange, onAddModel,
     lightingValue, onLightingChange,
-    minimapOn, onToggleMinimap,
 }) {
     return (
         <nav className="navbar">
@@ -41,18 +40,6 @@ export default function Navbar({
                     />
                     <Moon size={12} />
                 </div>
-
-                {mode === 'walkable' && (
-                    <button
-                        className={`mode-btn ${minimapOn ? 'active' : ''}`}
-                        onClick={onToggleMinimap}
-                        aria-label="Toggle minimap"
-                        title="Toggle minimap (M)"
-                    >
-                        <Map size={14} />
-                        <span>Map</span>
-                    </button>
-                )}
 
                 <button
                     className="mode-btn add-btn"
