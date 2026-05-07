@@ -164,10 +164,16 @@ export default function WalkableScene({
                     const isPainting = model.type === 'painting'
                     return (
                         <group key={model.id}>
-                            {/* Wall panel behind paintings — gives them their own "spot" */}
+                            {/* Wall panel BEHIND paintings — pushed toward the wall so its
+                                front face sits a few cm behind the canvas, giving the painting
+                                its own "spot" without covering it. */}
                             {isPainting && (
                                 <WallPanel
-                                    position={[position[0] + Math.sin(rotationY) * 0.02, PAINTING_Y, position[2]]}
+                                    position={[
+                                        position[0] - Math.sin(rotationY) * 0.12,
+                                        PAINTING_Y,
+                                        position[2] - Math.cos(rotationY) * 0.12,
+                                    ]}
                                     rotationY={rotationY}
                                     width={SPACING - 1.5}
                                     height={4.4}
@@ -191,9 +197,9 @@ export default function WalkableScene({
                                     mode="wall"
                                     accent={accent}
                                     position={[
-                                        position[0] - Math.sin(rotationY) * 0.06,
+                                        position[0] + Math.sin(rotationY) * 0.08,
                                         PAINTING_Y - 1.7,
-                                        position[2],
+                                        position[2] + Math.cos(rotationY) * 0.08,
                                     ]}
                                     rotationY={rotationY}
                                 />
