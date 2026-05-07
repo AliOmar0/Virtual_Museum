@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useEffect, useRef, useMemo, Component } from 'react'
-import { useGLTF, Center, Html } from '@react-three/drei'
+import React, { Suspense, lazy, useEffect, useRef, useMemo, useState, useLayoutEffect, Component } from 'react'
+import { useGLTF, Html } from '@react-three/drei'
 import * as THREE from 'three'
 
 const enhancedMaterials = new WeakSet()
@@ -77,38 +77,104 @@ class GLBErrorBoundary extends Component {
 }
 
 /**
- * Renders a model from the built-in registry or from a remote .glb URL.
- * Auto-centers and applies shadow + material polish.
+ * Measures the bounding box of children once they mount and applies:
+ *  - uniform scale so the appropriate dimension equals targetSize
+ *  - X/Z centering
+ *  - Y: center if alignBottom=false, or place bottom on y=0 if alignBottom=true
+ *
+ * This is much more reliable than drei's <Center> for async-loaded GLTFs.
  */
-export function ModelDisplay({ modelData, alignBottom = false, scale = 1 }) {
-    const groupRef = useRef()
-    const ModelComp = !modelData.remoteUrl ? builtInModels[modelData.file] : null
+function AutoFit({ children, type = 'statue', alignBottom = false, targetSize, extraScale = 1, onReady }) {
+    const outer = useRef()
+    const inner = useRef()
+    const [ready, setReady] = useState(false)
 
-    useEffect(() => {
-        if (groupRef.current) enhanceMaterials(groupRef.current)
-    })
+    useLayoutEffect(() => {
+        let cancelled = false
+        let raf = 0
+        let attempts = 0
+        const MAX_ATTEMPTS = 120 // ~2s at 60fps before giving up
+        const tryFit = () => {
+            if (cancelled) return
+            const i = inner.current
+            const o = outer.current
+            if (!i || !o) { raf = requestAnimationFrame(tryFit); return }
 
-    const modelScale = (modelData.scale || 1) * scale
+            // Reset before measuring so re-fits work correctly
+            i.position.set(0, 0, 0)
+            o.scale.setScalar(1)
+            i.updateMatrixWorld(true)
+
+            const box = new THREE.Box3().setFromObject(i)
+            if (box.isEmpty() || !isFinite(box.min.x) || !isFinite(box.max.x)) {
+                if (++attempts < MAX_ATTEMPTS) {
+                    raf = requestAnimationFrame(tryFit)
+                } else {
+                    // Give up gracefully — show as-is so user at least sees something
+                    setReady(true)
+                    if (onReady) onReady()
+                }
+                return
+            }
+            const size = new THREE.Vector3(); box.getSize(size)
+            const center = new THREE.Vector3(); box.getCenter(center)
+
+            // Choose the dimension to normalize:
+            // - paintings: largest of width/height (so they fill a wall slot)
+            // - statues: height (so they look human-scaled on the pedestal)
+            const dim = type === 'painting'
+                ? Math.max(size.x, size.y, size.z)
+                : Math.max(size.y, 0.001)
+            const defaultTarget = type === 'painting' ? 2.4 : 1.6
+            const s = (targetSize || defaultTarget) / dim * extraScale
+
+            o.scale.setScalar(s)
+            i.position.set(
+                -center.x,
+                alignBottom ? -box.min.y : -center.y,
+                -center.z
+            )
+
+            enhanceMaterials(i)
+            setReady(true)
+            if (onReady) onReady()
+        }
+        tryFit()
+        return () => { cancelled = true; if (raf) cancelAnimationFrame(raf) }
+    }, [type, alignBottom, targetSize, extraScale])
 
     return (
-        <group ref={groupRef}>
-            <Center
-                {...(alignBottom ? { bottom: true } : {})}
-                cacheKey={modelData.id + (alignBottom ? '-b' : '')}
-            >
-                <group scale={modelScale}>
-                    <GLBErrorBoundary>
-                        <Suspense fallback={null}>
-                            {modelData.remoteUrl ? (
-                                <RemoteGLB url={modelData.remoteUrl} />
-                            ) : ModelComp ? (
-                                <ModelComp />
-                            ) : null}
-                        </Suspense>
-                    </GLBErrorBoundary>
-                </group>
-            </Center>
+        <group ref={outer} visible={ready}>
+            <group ref={inner}>{children}</group>
         </group>
+    )
+}
+
+/**
+ * Renders a model from the built-in registry or from a remote .glb URL,
+ * auto-normalized to a consistent display size with proper bottom alignment
+ * for statues.
+ */
+export function ModelDisplay({ modelData, alignBottom = false, targetSize, extraScale = 1 }) {
+    const ModelComp = !modelData.remoteUrl ? builtInModels[modelData.file] : null
+
+    return (
+        <GLBErrorBoundary>
+            <Suspense fallback={null}>
+                <AutoFit
+                    type={modelData.type}
+                    alignBottom={alignBottom}
+                    targetSize={targetSize ?? modelData.targetSize}
+                    extraScale={extraScale * (modelData.fineScale || modelData.scale || 1)}
+                >
+                    {modelData.remoteUrl ? (
+                        <RemoteGLB url={modelData.remoteUrl} />
+                    ) : ModelComp ? (
+                        <ModelComp />
+                    ) : null}
+                </AutoFit>
+            </Suspense>
+        </GLBErrorBoundary>
     )
 }
 

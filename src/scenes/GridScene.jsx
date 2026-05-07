@@ -1,13 +1,13 @@
-import React, { Suspense, useRef, useMemo, useEffect } from 'react'
+import React, { Suspense, useRef, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Environment, ContactShadows, Preload } from '@react-three/drei'
+import { OrbitControls, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import { Exhibit } from '../components/ExhibitDisplay'
 import { ModelLoadingFallback } from '../components/ModelLoader'
 
 const COLS = 4
-const COL_SPACING = 6
-const ROW_SPACING = 7
+const COL_SPACING = 5
+const ROW_SPACING = 5.5
 
 function gridLayout(models) {
     return models.map((m, i) => {
@@ -42,31 +42,40 @@ export default function GridScene({ models, currentIndex, onSelect }) {
     const current = placements[currentIndex] || placements[0]
 
     const cam = useMemo(() => {
-        const [x, y, z] = current.position
-        return { pos: [x, 1.5, z + 5], look: [x, 0.8, z] }
+        const [x, , z] = current.position
+        return { pos: [x, 1.8, z + 4.5], look: [x, 1.0, z] }
     }, [current])
+
+    const rows = Math.ceil(models.length / COLS)
+    const floorCenterZ = -((rows - 1) * ROW_SPACING) / 2
+    const floorWidth = COL_SPACING * COLS + 8
+    const floorDepth = ROW_SPACING * rows + 10
 
     return (
         <Canvas
             shadows
-            dpr={[1, 1.75]}
+            dpr={[1, 1.5]}
             gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
-            camera={{ position: [0, 8, 18], fov: 45 }}
+            camera={{ position: [0, 8, 14], fov: 45 }}
         >
-            <color attach="background" args={['#070605']} />
-            <fog attach="fog" args={['#070605', 14, 60]} />
+            <color attach="background" args={['#0a0908']} />
+            <fog attach="fog" args={['#0a0908', 16, 60]} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="warehouse" environmentIntensity={0.3} />
+                <Environment preset="warehouse" environmentIntensity={0.45} />
 
-                <ambientLight intensity={0.25} />
-                <hemisphereLight args={['#fff1d6', '#0a0908', 0.25]} />
+                <ambientLight intensity={0.4} />
+                <hemisphereLight args={['#fff1d6', '#0a0908', 0.35]} />
 
                 <directionalLight
                     position={[10, 14, 8]}
                     intensity={0.9}
                     castShadow
-                    shadow-mapSize={[2048, 2048]}
+                    shadow-mapSize={[1024, 1024]}
+                    shadow-camera-left={-15}
+                    shadow-camera-right={15}
+                    shadow-camera-top={10}
+                    shadow-camera-bottom={-15}
                     shadow-bias={-0.0005}
                 />
 
@@ -78,31 +87,30 @@ export default function GridScene({ models, currentIndex, onSelect }) {
                         <Exhibit
                             modelData={model}
                             position={position}
-                            withSpotlight
+                            withSpotlight={i === currentIndex}
                             withPedestal
                         />
-                        {/* Highlight ring for current selection */}
                         {i === currentIndex && (
                             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[position[0], 0.02, position[2]]}>
-                                <ringGeometry args={[1.6, 1.75, 64]} />
-                                <meshBasicMaterial color="#d4af37" transparent opacity={0.7} />
+                                <ringGeometry args={[1.5, 1.65, 64]} />
+                                <meshBasicMaterial color="#d4af37" transparent opacity={0.8} />
                             </mesh>
                         )}
                     </group>
                 ))}
 
                 {/* Floor */}
-                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -((Math.ceil(models.length / COLS) - 1) * ROW_SPACING) / 2]} receiveShadow>
-                    <planeGeometry args={[COL_SPACING * COLS + 8, ROW_SPACING * Math.ceil(models.length / COLS) + 10]} />
-                    <meshStandardMaterial color="#0e0d0c" roughness={0.9} metalness={0.1} />
+                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, floorCenterZ]} receiveShadow>
+                    <planeGeometry args={[floorWidth, floorDepth]} />
+                    <meshStandardMaterial color="#161412" roughness={0.9} metalness={0.1} />
                 </mesh>
 
                 <ContactShadows
-                    scale={60}
+                    scale={Math.max(floorWidth, floorDepth)}
                     blur={2.5}
-                    opacity={0.5}
-                    far={8}
-                    position={[0, 0.01, -((Math.ceil(models.length / COLS) - 1) * ROW_SPACING) / 2]}
+                    opacity={0.45}
+                    far={6}
+                    position={[0, 0.01, floorCenterZ]}
                 />
             </Suspense>
 
@@ -119,7 +127,6 @@ export default function GridScene({ models, currentIndex, onSelect }) {
                 enableDamping
                 dampingFactor={0.1}
             />
-            <Preload all />
         </Canvas>
     )
 }

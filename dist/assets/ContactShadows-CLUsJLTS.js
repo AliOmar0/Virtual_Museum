@@ -1,4 +1,4 @@
-import{b as w,u as j,_ as H}from"./ExhibitDisplay-DmIIVqFW.js";import{r,W as P,P as O,a as L,b as X,C as q,S as R}from"./index-BLWqhbf8.js";const J={uniforms:{tDiffuse:{value:null},h:{value:1/512}},vertexShader:`
+import{b as w,u as j,_ as H}from"./ExhibitDisplay-rd_DxMBQ.js";import{r,W as P,P as O,a as L,b as X,C as q,S as R}from"./index-C-OKtfd6.js";const J={uniforms:{tDiffuse:{value:null},h:{value:1/512}},vertexShader:`
       varying vec2 vUv;
 
       void main() {

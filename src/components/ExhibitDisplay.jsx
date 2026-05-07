@@ -5,12 +5,20 @@ import { Pedestal, ExhibitSpotlight } from './MuseumRoom'
 
 /**
  * A complete exhibit: model placed correctly with pedestal (statues)
- * or wall-mounted (paintings), plus a directed spotlight.
+ * or wall-mounted (paintings), plus an optional spotlight.
  *
- * Position is the "anchor" — for statues that's the base of the pedestal on the floor;
- * for paintings that's the center of the artwork on the wall.
+ * `position` is the floor anchor for statues, or the wall anchor (center of
+ * artwork on the wall) for paintings.
  */
-export function Exhibit({ modelData, position = [0, 0, 0], rotationY = 0, autoRotate = false, withSpotlight = true, withPedestal = true, castShadowSpot = false }) {
+export function Exhibit({
+    modelData,
+    position = [0, 0, 0],
+    rotationY = 0,
+    autoRotate = false,
+    withSpotlight = true,
+    withPedestal = true,
+    castShadowSpot = false,
+}) {
     const spinRef = useRef()
     useFrame((_, dt) => {
         if (autoRotate && spinRef.current) {
@@ -20,19 +28,15 @@ export function Exhibit({ modelData, position = [0, 0, 0], rotationY = 0, autoRo
 
     if (modelData.type === 'painting') {
         // Painting hangs flat on a wall. Rotation Y orients which wall it faces.
-        const lightFrom = [
-            position[0] + Math.sin(rotationY) * 2,
-            position[1] + 2.0,
-            position[2] + Math.cos(rotationY) * 2,
-        ]
+        // ModelDisplay normalizes the painting to ~targetSize meters and centers it.
         return (
             <group position={position} rotation={[0, rotationY, 0]}>
                 <ModelDisplay modelData={modelData} />
                 {withSpotlight && (
                     <ExhibitSpotlight
-                        from={[0, 2.0, 1.8]}
+                        from={[0, 1.4, 1.6]}
                         target={[0, 0, 0]}
-                        intensity={14}
+                        intensity={10}
                         castShadow={castShadowSpot}
                     />
                 )}
@@ -40,8 +44,8 @@ export function Exhibit({ modelData, position = [0, 0, 0], rotationY = 0, autoRo
         )
     }
 
-    // Statue: place pedestal at floor, model on top, spotlight from above-front
-    const pedestalHeight = modelData.pedestalHeight ?? 1.1
+    // Statue: pedestal sits at floor, model bottom-aligned on top of pedestal
+    const pedestalHeight = modelData.pedestalHeight ?? 1.0
     return (
         <group position={position} rotation={[0, rotationY, 0]}>
             {withPedestal && <Pedestal height={pedestalHeight} />}
@@ -50,9 +54,9 @@ export function Exhibit({ modelData, position = [0, 0, 0], rotationY = 0, autoRo
             </group>
             {withSpotlight && (
                 <ExhibitSpotlight
-                    from={[0, 6, 2.5]}
+                    from={[0, pedestalHeight + 4, 2.2]}
                     target={[0, pedestalHeight + 0.8, 0]}
-                    intensity={20}
+                    intensity={18}
                     castShadow={castShadowSpot}
                 />
             )}

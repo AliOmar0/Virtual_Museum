@@ -1,3 +1,8 @@
+// targetSize:
+//   - statues: target HEIGHT in meters (1.6 ≈ human-scaled)
+//   - paintings: target max(width, height) in meters
+// fineScale: optional multiplier applied after AutoFit (default 1)
+// pedestalHeight: only used for statues
 export const modelsData = [
     {
         id: "starry-night",
@@ -8,9 +13,7 @@ export const modelsData = [
         description: "A masterpiece of Post-Impressionism, depicting the view from Van Gogh's asylum room at Saint-Rémy-de-Provence just before sunrise.",
         file: "TheStarryNight_painting",
         sourceUrl: "https://sketchfab.com/3d-models/psx-painting-eb869f2272334150977ca9d9b89fc986",
-        scale: 3.0,
-        wallSize: [3.4, 3.4],
-        viewerYOffset: 0,
+        targetSize: 2.6,
     },
     {
         id: "angel",
@@ -21,8 +24,8 @@ export const modelsData = [
         description: "An elegant classical sculpture of an angel carved from aged marble, with intricate detail in the wings and drapery.",
         file: "Angel_old_marble_version",
         sourceUrl: "https://sketchfab.com/3d-models/angel-old-marble-version-2c879fc654b44f5e8d12527948535b51",
-        scale: 0.55,
-        pedestalHeight: 1.1,
+        targetSize: 1.7,
+        pedestalHeight: 1.0,
     },
     {
         id: "death-crowning-innocence",
@@ -33,9 +36,7 @@ export const modelsData = [
         description: "A symbolic painting representing the gentle nature of death, portrayed as a winged figure crowning a child.",
         file: "Death_crowning_innocence_1896_Painting",
         sourceUrl: "https://sketchfab.com/3d-models/death-crowning-innocence-1896-ebcbbe30d65a43fa96187ade879d43cd",
-        scale: 2.6,
-        wallSize: [3.0, 3.6],
-        viewerYOffset: 0,
+        targetSize: 2.8,
     },
     {
         id: "laocoon",
@@ -46,7 +47,7 @@ export const modelsData = [
         description: "One of the most famous ancient sculptures, depicting the Trojan priest Laocoön and his sons being attacked by sea serpents.",
         file: "Laocoon_and_his_sons",
         sourceUrl: "https://sketchfab.com/3d-models/laocoon-and-his-sons-649111a9a7b74ddab3937292be5545fc",
-        scale: 0.5,
+        targetSize: 1.8,
         pedestalHeight: 1.0,
     },
     {
@@ -58,8 +59,8 @@ export const modelsData = [
         description: "A monumental bust of the Sun King, Louis XIV, representing the height of French Baroque sculpture.",
         file: "Louis_xiv_de_france_louvre_paris",
         sourceUrl: "https://sketchfab.com/3d-models/louis-xiv-de-france-louvre-paris-a0cc0e7eee384c99838dff2857b8158c",
-        scale: 1.6,
-        pedestalHeight: 1.1,
+        targetSize: 1.6,
+        pedestalHeight: 1.0,
     },
     {
         id: "beksinski",
@@ -70,9 +71,7 @@ export const modelsData = [
         description: "A hauntingly beautiful work in the genre of dystopian surrealism by the renowned Polish artist.",
         file: "Painting_by_zdzislaw_beksinski_2",
         sourceUrl: "https://sketchfab.com/3d-models/painting-by-zdzislaw-beksinski-2-da5bab909570476b951be08d6a9eecdc",
-        scale: 2.6,
-        wallSize: [3.4, 3.4],
-        viewerYOffset: 0,
+        targetSize: 2.6,
     },
     {
         id: "thinker",
@@ -83,8 +82,8 @@ export const modelsData = [
         description: "Rodin's most famous sculpture, depicting a man in sober meditation as if battling with a powerful internal struggle.",
         file: "The_thinker_by_auguste_rodin",
         sourceUrl: "https://sketchfab.com/3d-models/the-thinker-by-auguste-rodin-08a1e693c9674a3292dec2298b09e0ae",
-        scale: 2.4,
-        pedestalHeight: 1.1,
+        targetSize: 1.7,
+        pedestalHeight: 1.0,
     },
     {
         id: "frank",
@@ -95,7 +94,7 @@ export const modelsData = [
         description: "A modern interpretation of a classic monster, exploring themes of creation and humanity.",
         file: "Frank",
         sourceUrl: "https://sketchfab.com/3d-models/frank-0eb1f1757349489eab05a0f03cff5b46",
-        scale: 3.2,
+        targetSize: 1.8,
         pedestalHeight: 1.0,
     },
 ];
