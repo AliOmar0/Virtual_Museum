@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Upload } from 'lucide-react'
 
@@ -12,15 +12,6 @@ export default function AddModelDialog({ open, onClose, onAdd }) {
     const [error, setError] = useState('')
     const fileInputRef = useRef(null)
 
-    // Track blob URLs we hand to the app so we can revoke them later
-    const blobUrlsRef = useRef([])
-
-    useEffect(() => {
-        return () => {
-            blobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u))
-        }
-    }, [])
-
     const reset = () => {
         setUrl(''); setFile(null); setTitle(''); setScale(1); setType('statue'); setError('')
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -32,6 +23,7 @@ export default function AddModelDialog({ open, onClose, onAdd }) {
 
         let finalUrl = ''
         let displaySource = ''
+        let pickedFile = null
 
         if (mode === 'file') {
             if (!file) {
@@ -43,8 +35,8 @@ export default function AddModelDialog({ open, onClose, onAdd }) {
                 return
             }
             finalUrl = URL.createObjectURL(file)
-            blobUrlsRef.current.push(finalUrl)
             displaySource = file.name
+            pickedFile = file
         } else {
             const trimmed = url.trim()
             if (!trimmed) {
@@ -65,17 +57,20 @@ export default function AddModelDialog({ open, onClose, onAdd }) {
 
         const id = `custom-${Date.now()}`
         onAdd({
-            id,
-            title: title.trim() || (file ? file.name.replace(/\.glb$/i, '') : 'Custom Exhibit'),
-            artist: 'Custom',
-            year: '—',
-            type,
-            description: 'A custom 3D model added by you.',
-            file: id,
-            remoteUrl: finalUrl,
-            sourceUrl: displaySource,
-            scale: Number(scale) || 1,
-            pedestalHeight: type === 'statue' ? 1.0 : undefined,
+            model: {
+                id,
+                title: title.trim() || (file ? file.name.replace(/\.glb$/i, '') : 'Custom Exhibit'),
+                artist: 'Custom',
+                year: '—',
+                type,
+                description: 'A custom 3D model added by you.',
+                file: id,
+                remoteUrl: finalUrl,
+                sourceUrl: displaySource,
+                scale: Number(scale) || 1,
+                pedestalHeight: type === 'statue' ? 1.0 : undefined,
+            },
+            file: pickedFile,
         })
         reset()
         onClose()

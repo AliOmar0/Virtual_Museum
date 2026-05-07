@@ -1,9 +1,10 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { ExternalLink } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
-export default function InfoPanel({ model, compact = false }) {
+export default function InfoPanel({ model, compact = false, onDelete }) {
     if (!model) return null
+    const canDelete = !!model._custom && typeof onDelete === 'function'
     return (
         <motion.div
             key={model.id}
@@ -17,15 +18,17 @@ export default function InfoPanel({ model, compact = false }) {
             <h1 className="model-title">{model.title}</h1>
             <div className="year-tag">{model.year}</div>
             {!compact && <p className="model-description">{model.description}</p>}
-            {model.sourceUrl && (
-                <a
-                    className="details-btn"
-                    href={model.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+            {canDelete && (
+                <button
+                    className="details-btn delete-btn"
+                    onClick={() => {
+                        if (window.confirm(`Remove "${model.title}" from your gallery?`)) {
+                            onDelete(model.id)
+                        }
+                    }}
                 >
-                    <ExternalLink size={12} /> SKETCHFAB SOURCE
-                </a>
+                    <Trash2 size={12} /> REMOVE EXHIBIT
+                </button>
             )}
         </motion.div>
     )

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useProgress } from '@react-three/drei'
 
@@ -11,10 +11,13 @@ import FullscreenBtn from './components/ui/FullscreenBtn'
 import AudioBtn from './components/ui/AudioBtn'
 import AddModelDialog from './components/ui/AddModelDialog'
 import { useAmbientAudio } from './hooks/useAmbientAudio'
+import { loadCustomModels, saveCustomModel, deleteCustomModel } from './lib/modelStorage'
 
 const ViewerScene = lazy(() => import('./scenes/ViewerScene'))
 const WalkableScene = lazy(() => import('./scenes/WalkableScene'))
 const GridScene = lazy(() => import('./scenes/GridScene'))
+
+const DRAMATIC_KEY = 'museum.dramaticLighting'
 
 function FullScreenLoader() {
     const { progress } = useProgress()
@@ -45,16 +48,32 @@ function FullScreenLoader() {
 }
 
 export default function App() {
-    const [mode, setMode] = useState('viewer') // 'viewer' | 'walkable' | 'grid'
+    const [mode, setMode] = useState('viewer')
     const [customModels, setCustomModels] = useState([])
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isInitialLoad, setIsInitialLoad] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
+    const [dramatic, setDramatic] = useState(() => {
+        try { return localStorage.getItem(DRAMATIC_KEY) === '1' } catch { return false }
+    })
     const { progress } = useProgress()
     const { enabled: audioOn, toggle: toggleAudio } = useAmbientAudio()
 
     const models = useMemo(() => [...builtInModels, ...customModels], [customModels])
     const currentModel = models[currentIndex] || models[0]
+
+    // Hydrate persisted custom models on first load
+    useEffect(() => {
+        let cancelled = false
+        loadCustomModels().then((loaded) => {
+            if (!cancelled && loaded.length) setCustomModels(loaded)
+        }).catch(() => { /* ignore */ })
+        return () => { cancelled = true }
+    }, [])
+
+    useEffect(() => {
+        try { localStorage.setItem(DRAMATIC_KEY, dramatic ? '1' : '0') } catch { /* ignore */ }
+    }, [dramatic])
 
     useEffect(() => {
         if (progress >= 100) {
@@ -63,7 +82,6 @@ export default function App() {
         }
     }, [progress])
 
-    // Safety net — if Three never reports progress (e.g., WebGL unavailable), reveal UI after 1.5s
     useEffect(() => {
         const t = setTimeout(() => setIsInitialLoad(false), 1500)
         return () => clearTimeout(t)
@@ -71,11 +89,13 @@ export default function App() {
 
     useEffect(() => {
         const onKey = (e) => {
+            if (e.target?.tagName === 'INPUT' || e.target?.tagName === 'TEXTAREA') return
             if (e.key === 'ArrowRight') setCurrentIndex((i) => (i + 1) % models.length)
             else if (e.key === 'ArrowLeft') setCurrentIndex((i) => (i - 1 + models.length) % models.length)
             else if (e.key === '1') setMode('viewer')
             else if (e.key === '2') setMode('walkable')
             else if (e.key === '3') setMode('grid')
+            else if (e.key === 'l' || e.key === 'L') setDramatic((d) => !d)
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
@@ -83,10 +103,39 @@ export default function App() {
 
     const next = () => setCurrentIndex((i) => (i + 1) % models.length)
     const prev = () => setCurrentIndex((i) => (i - 1 + models.length) % models.length)
-    const handleAdd = (m) => {
-        setCustomModels((prev) => [...prev, m])
-        setCurrentIndex(models.length) // jump to new one (current models length before update == new index)
-    }
+
+    const handleAdd = useCallback(async ({ model, file }) => {
+        // Mark as user-added so the InfoPanel offers a delete button
+        const tagged = { ...model, _custom: true }
+        setCustomModels((prev) => [...prev, tagged])
+        setCurrentIndex(models.length)
+        try {
+            await saveCustomModel(tagged, file)
+        } catch (err) {
+            console.warn('Failed to persist custom model:', err)
+        }
+    }, [models.length])
+
+    const handleDelete = useCallback(async (id) => {
+        const idx = models.findIndex((m) => m.id === id)
+        setCustomModels((prev) => {
+            const next = prev.filter((m) => m.id !== id)
+            // Revoke blob URL if it was a local upload
+            const removed = prev.find((m) => m.id === id)
+            if (removed?.remoteUrl?.startsWith('blob:')) {
+                try { URL.revokeObjectURL(removed.remoteUrl) } catch { /* ignore */ }
+            }
+            return next
+        })
+        // Adjust currentIndex if needed
+        setCurrentIndex((ci) => {
+            if (idx === -1) return ci
+            if (ci > idx) return ci - 1
+            if (ci === idx) return Math.max(0, ci - 1)
+            return ci
+        })
+        try { await deleteCustomModel(id) } catch { /* ignore */ }
+    }, [models])
 
     return (
         <div className="app-root">
@@ -98,28 +147,36 @@ export default function App() {
                 mode={mode}
                 onModeChange={setMode}
                 onAddModel={() => setDialogOpen(true)}
+                dramatic={dramatic}
+                onToggleDramatic={() => setDramatic((d) => !d)}
             />
 
             <div className="canvas-container">
                 <Suspense fallback={null}>
                     {mode === 'viewer' && (
-                        <ViewerScene key={`v-${currentModel.id}`} modelData={currentModel} />
+                        <ViewerScene key={`v-${currentModel.id}`} modelData={currentModel} dramatic={dramatic} />
                     )}
                     {mode === 'walkable' && (
-                        <WalkableScene models={models} currentIndex={currentIndex} />
+                        <WalkableScene models={models} currentIndex={currentIndex} dramatic={dramatic} />
                     )}
                     {mode === 'grid' && (
                         <GridScene
                             models={models}
                             currentIndex={currentIndex}
                             onSelect={setCurrentIndex}
+                            dramatic={dramatic}
                         />
                     )}
                 </Suspense>
             </div>
 
             <AnimatePresence mode="wait">
-                <InfoPanel key={currentModel.id + mode} model={currentModel} compact={mode !== 'viewer'} />
+                <InfoPanel
+                    key={currentModel.id + mode}
+                    model={currentModel}
+                    compact={mode !== 'viewer'}
+                    onDelete={handleDelete}
+                />
             </AnimatePresence>
 
             <div className="bottom-bar">
@@ -141,9 +198,9 @@ export default function App() {
             </div>
 
             <div className="hint">
-                {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch'}
-                {mode === 'walkable' && 'Drag to look · Scroll to move closer · ← → to walk'}
-                {mode === 'grid' && 'Click any exhibit to focus · Drag to orbit · ← →'}
+                {mode === 'viewer' && 'Drag to rotate · Scroll to zoom · ← → to switch · L for lighting'}
+                {mode === 'walkable' && 'Drag to look · Scroll to move closer · ← → to walk · L for lighting'}
+                {mode === 'grid' && 'Click any exhibit to focus · Drag to orbit · ← → · L for lighting'}
             </div>
 
             <AddModelDialog

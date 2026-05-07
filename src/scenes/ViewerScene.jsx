@@ -24,35 +24,37 @@ function CameraRig({ isPainting }) {
     return null
 }
 
-export default function ViewerScene({ modelData }) {
+export default function ViewerScene({ modelData, dramatic = false }) {
     const isPainting = modelData.type === 'painting'
+    const bg = dramatic ? '#020202' : '#070605'
+    const exposure = dramatic ? 0.85 : 1.0
 
     return (
         <Canvas
             shadows
             dpr={[1, 1.75]}
-            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: exposure }}
             camera={{ position: [0, 1.3, 4.5], fov: 40 }}
         >
-            <color attach="background" args={['#070605']} />
-            <fog attach="fog" args={['#070605', 14, 40]} />
+            <color attach="background" args={[bg]} />
+            <fog attach="fog" args={[bg, dramatic ? 8 : 14, dramatic ? 26 : 40]} />
 
             <CameraRig isPainting={isPainting} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="warehouse" environmentIntensity={0.4} />
+                <Environment preset="warehouse" environmentIntensity={dramatic ? 0.12 : 0.4} />
 
-                <ambientLight intensity={0.3} />
-                <hemisphereLight args={['#fff1d6', '#1a1410', 0.35]} />
+                <ambientLight intensity={dramatic ? 0.06 : 0.3} />
+                <hemisphereLight args={['#fff1d6', '#1a1410', dramatic ? 0.08 : 0.35]} />
 
                 <directionalLight
                     position={[6, 8, 5]}
-                    intensity={1.0}
+                    intensity={dramatic ? 0.4 : 1.0}
                     castShadow
                     shadow-mapSize={[1024, 1024]}
                     shadow-bias={-0.0005}
                 />
-                <pointLight position={[-5, 3, -3]} intensity={0.5} color="#5577aa" />
+                <pointLight position={[-5, 3, -3]} intensity={dramatic ? 0.2 : 0.5} color="#5577aa" />
 
                 {isPainting ? (
                     <Float speed={1.0} rotationIntensity={0.05} floatIntensity={0.05}>

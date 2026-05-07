@@ -59,7 +59,7 @@ function PaintingStand({ position = [0, 0, 0], height = 3.4 }) {
     )
 }
 
-export default function GridScene({ models, currentIndex, onSelect }) {
+export default function GridScene({ models, currentIndex, onSelect, dramatic = false }) {
     const placements = useMemo(() => gridLayout(models), [models])
     const controlsRef = useRef()
     const current = placements[currentIndex] || placements[0]
@@ -94,21 +94,21 @@ export default function GridScene({ models, currentIndex, onSelect }) {
         <Canvas
             shadows
             dpr={[1, 1.5]}
-            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dramatic ? 0.85 : 1.0 }}
             camera={{ position: [0, 8, 14], fov: 45 }}
         >
             <color attach="background" args={['#0a0908']} />
-            <fog attach="fog" args={['#0a0908', 18, 65]} />
+            <fog attach="fog" args={['#0a0908', dramatic ? 12 : 18, dramatic ? 45 : 65]} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="warehouse" environmentIntensity={0.45} />
+                <Environment preset="warehouse" environmentIntensity={dramatic ? 0.15 : 0.45} />
 
-                <ambientLight intensity={0.4} />
-                <hemisphereLight args={['#fff1d6', '#0a0908', 0.35]} />
+                <ambientLight intensity={dramatic ? 0.12 : 0.4} />
+                <hemisphereLight args={['#fff1d6', '#0a0908', dramatic ? 0.08 : 0.35]} />
 
                 <directionalLight
                     position={[10, 14, 8]}
-                    intensity={0.85}
+                    intensity={dramatic ? 0.3 : 0.85}
                     castShadow
                     shadow-mapSize={[1024, 1024]}
                     shadow-camera-left={-15}

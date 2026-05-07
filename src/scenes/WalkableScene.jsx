@@ -22,9 +22,10 @@ function computeLayout(models) {
             const onLeft = paintingIdx % 2 === 0
             const z = -((Math.floor(paintingIdx / 2)) * SPACING + 4)
             const x = onLeft ? -ROOM_WIDTH / 2 + 0.15 : ROOM_WIDTH / 2 - 0.15
-            // Left wall: face +X (into the room) → rotate -90° around Y
-            // Right wall: face -X (into the room) → rotate +90° around Y
-            const rotY = onLeft ? -Math.PI / 2 : Math.PI / 2
+            // Painting local +Z is its "front". After Y-rotation, world front = (sin(rotY), 0, cos(rotY)).
+            // Left wall (x = -8): want front facing +X → sin(rotY)=+1 → rotY = +π/2
+            // Right wall (x = +8): want front facing -X → sin(rotY)=-1 → rotY = -π/2
+            const rotY = onLeft ? Math.PI / 2 : -Math.PI / 2
             placements.push({ model: m, position: [x, PAINTING_Y, z], rotationY: rotY })
             paintingIdx++
         } else {
@@ -53,7 +54,7 @@ function CameraDriver({ targetPos, lookAt, controlsRef }) {
     return null
 }
 
-export default function WalkableScene({ models, currentIndex }) {
+export default function WalkableScene({ models, currentIndex, dramatic = false }) {
     const placements = useMemo(() => computeLayout(models), [models])
     const controlsRef = useRef()
 
@@ -98,9 +99,11 @@ export default function WalkableScene({ models, currentIndex }) {
         if (!current) return { pos: [0, 1.7, 5], look: [0, 1.7, 0] }
         const [x, y, z] = current.position
         if (current.model.type === 'painting') {
-            const dx = Math.sin(current.rotationY) * 5
-            const dz = Math.cos(current.rotationY) * 5
-            return { pos: [x - dx, 2.4, z - dz], look: [x, y, z] }
+            // Place camera in front of the painting (along its forward direction),
+            // i.e. in the room — not behind the wall.
+            const fx = Math.sin(current.rotationY)
+            const fz = Math.cos(current.rotationY)
+            return { pos: [x + fx * 5, 2.4, z + fz * 5], look: [x, y, z] }
         }
         return { pos: [x, 1.7, z + 5], look: [x, 1.4, z] }
     }, [current])
@@ -109,21 +112,21 @@ export default function WalkableScene({ models, currentIndex }) {
         <Canvas
             shadows
             dpr={[1, 1.5]}
-            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+            gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: dramatic ? 0.85 : 1.0 }}
             camera={{ position: [0, 1.7, 5], fov: 55 }}
         >
             <color attach="background" args={['#050403']} />
-            <fog attach="fog" args={['#050403', 12, 55]} />
+            <fog attach="fog" args={['#050403', dramatic ? 8 : 12, dramatic ? 38 : 55]} />
 
             <Suspense fallback={<ModelLoadingFallback />}>
-                <Environment preset="apartment" environmentIntensity={0.3} />
+                <Environment preset="apartment" environmentIntensity={dramatic ? 0.1 : 0.3} />
 
-                <ambientLight intensity={0.3} />
-                <hemisphereLight args={['#fff1d6', '#0a0908', 0.25]} />
+                <ambientLight intensity={dramatic ? 0.08 : 0.3} />
+                <hemisphereLight args={['#fff1d6', '#0a0908', dramatic ? 0.06 : 0.25]} />
 
                 <directionalLight
                     position={[6, 10, 4]}
-                    intensity={0.65}
+                    intensity={dramatic ? 0.25 : 0.65}
                     castShadow
                     shadow-mapSize={[1024, 1024]}
                     shadow-camera-left={-12}

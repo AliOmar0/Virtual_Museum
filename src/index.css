@@ -449,6 +449,15 @@ button { font-family: inherit; cursor: pointer; }
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+.delete-btn {
+    color: #ff8a8a !important;
+    border-color: rgba(255, 138, 138, 0.4) !important;
+    margin-top: 0.6rem;
+}
+.delete-btn:hover {
+    background: rgba(255, 138, 138, 0.12);
+    border-color: #ff8a8a !important;
+}
 .dialog-error {
     color: #ff6b6b;
     font-size: 0.8rem;
