@@ -10,12 +10,14 @@ import Controls from './components/ui/Controls'
 import ThumbnailStrip from './components/ui/ThumbnailStrip'
 import FullscreenBtn from './components/ui/FullscreenBtn'
 import AudioBtn from './components/ui/AudioBtn'
+import MusicBtn from './components/ui/MusicBtn'
 import AddModelDialog from './components/ui/AddModelDialog'
 import HelpOverlay from './components/ui/HelpOverlay'
 import ShareDialog from './components/ui/ShareDialog'
 import SearchFilterBar from './components/ui/SearchFilterBar'
 import PerfHUD from './components/ui/PerfHUD'
 import { useAmbientAudio } from './hooks/useAmbientAudio'
+import { useLobbyMusic } from './hooks/useLobbyMusic'
 import {
     loadCustomModels, saveCustomModel, deleteCustomModel, saveThumbnail,
 } from './lib/modelStorage'
@@ -109,7 +111,24 @@ export default function App() {
     }, [])
 
     const { progress } = useProgress()
-    const { enabled: audioOn, toggle: toggleAudio } = useAmbientAudio()
+    const { enabled: audioOn, toggle: toggleAudio, disable: disableAudio } = useAmbientAudio()
+    const {
+        enabled: musicOn, toggle: toggleMusicRaw,
+        volume: musicVolume, setVolume: setMusicVolume,
+        disable: disableMusic,
+    } = useLobbyMusic({ initialVolume: 0.35 })
+
+    // Music and procedural drone are mutually exclusive — turning one on
+    // gracefully fades out the other.
+    const toggleMusic = useCallback(() => {
+        if (!musicOn && audioOn) disableAudio()
+        toggleMusicRaw()
+    }, [musicOn, audioOn, disableAudio, toggleMusicRaw])
+
+    const toggleAudioExclusive = useCallback(() => {
+        if (!audioOn && musicOn) disableMusic()
+        toggleAudio()
+    }, [audioOn, musicOn, disableMusic, toggleAudio])
 
     const models = useMemo(() => [...builtInModels, ...customModels], [customModels])
     const currentModel = models[currentIndex] || models[0]
@@ -443,7 +462,13 @@ export default function App() {
                     >
                         {descVisible ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
-                    <AudioBtn enabled={audioOn} onToggle={toggleAudio} />
+                    <MusicBtn
+                        enabled={musicOn}
+                        onToggle={toggleMusic}
+                        volume={musicVolume}
+                        onVolumeChange={setMusicVolume}
+                    />
+                    <AudioBtn enabled={audioOn} onToggle={toggleAudioExclusive} />
                     <FullscreenBtn />
                 </div>
             </div>

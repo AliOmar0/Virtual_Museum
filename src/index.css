@@ -1122,3 +1122,27 @@ button { font-family: inherit; cursor: pointer; }
     .autofill-label { flex-direction: column !important; align-items: flex-start; }
     .autofill-hint { text-align: left; }
 }
+
+/* ============== MUSIC BTN ============== */
+.music-wrap { position: relative; display: inline-flex; }
+.music-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: -4px;
+    background: rgba(15,12,10,0.96);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 0.55rem 0.7rem;
+    z-index: 60;
+    min-width: 180px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.music-pop-label {
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 0.4rem;
+}
+.music-popover input[type="range"] { width: 100%; accent-color: var(--gold, #d4af37); }
